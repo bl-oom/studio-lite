@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bl-oom Studio Lite</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#0e0f12">
+<script>
+// 前回使った道具をそのまま開く（?menu を付けると一覧）
+(function(){try{var id=localStorage.getItem('bl_studio_last');if(id&&!/[?&]menu/.test(location.search)&&/^(ab-loop|slideshow)$/.test(id))location.replace(id+'/')}catch(e){}})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Overpass+Mono:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+<script src="common.js"></script>
+<script>BL.menu(null)</script>
+</body>
+</html>

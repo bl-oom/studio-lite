@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slideshow – bl-oom Studio Lite</title>
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icon.svg">
+<meta name="theme-color" content="#0e0f12">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Overpass+Mono:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../common.css">
+<style>
+/*
+ABループと同じ「編集室の道具」の見た目。常に1画面に収め、ボタンの位置は表示が変わっても動かない。
+縦長画面は上プレビュー・下操作、幅広画面（Fold内画面の横向きなど）は左プレビュー・右操作。
+画面の左右端・下端は戻るジェスチャーになるので、操作部品は端から内側に置く。
+*/
+
+
+
+
+
+
+h1{font-size:16px;margin:0 2px;font-weight:700;flex:none}
+.stage{position:relative;flex:1 1 auto;min-height:120px;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}
+.stage.has canvas{display:block}
+.stage.fs{position:fixed;inset:0;z-index:50;border-radius:0;border:0}
+
+
+
+.stage.has .empty{display:none}
+/* 写真の帯 */
+.srow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:8px;align-items:center;flex:none}
+.mode{height:58px;border-color:var(--go);padding:0}
+
+.strip{display:flex;gap:6px;overflow-x:auto;height:58px;flex:none;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;padding:3px 2px;scrollbar-width:none;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.strip::-webkit-scrollbar{display:none}
+.strip .th{position:relative;flex:0 0 50px;height:50px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#000}
+.strip .th img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.strip .th i{position:absolute;left:2px;bottom:1px;font:600 10px "Overpass Mono",monospace;font-style:normal;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
+.strip .th.cur{border-color:var(--a)}
+.strip .none{color:var(--mute);font-size:13px;display:flex;align-items:center;padding:0 12px;white-space:nowrap}
+
+.times div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 8px;white-space:nowrap;display:flex;gap:6px;align-items:baseline;height:34px;overflow:hidden}
+
+
+button,.btn,.dl{font:700 14px "Zen Kaku Gothic New",sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;height:46px;padding:2px 2px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.15;width:100%;box-shadow:none;user-select:none;-webkit-user-select:none}
+button:active,.btn:active{transform:scale(.97)}
+
+button:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+/* 2段表示のボタン（上：項目名、下：今の値）。値が変わってもボタンの大きさ・位置は同じ */
+.tg{flex-direction:column;gap:1px;padding:2px}
+.tg small{font:500 10.5px "Zen Kaku Gothic New",sans-serif;color:var(--mute);white-space:nowrap}
+.tg b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tg.on{border-color:var(--a)}.tg.on b{color:var(--a)}
+.tg.alt{border-color:var(--b)}.tg.alt b{color:var(--b)}
+.go{grid-column:span 4;height:52px;font-size:18px;background:linear-gradient(90deg,var(--a),var(--b));color:#fff;border:0;text-shadow:0 1px 2px #0005;gap:8px;letter-spacing:.04em}
+
+.go.on{background:linear-gradient(#17191e,#17191e) padding-box,linear-gradient(90deg,var(--a),var(--b)) border-box;border:2px solid transparent;text-shadow:none}
+
+.add{border-color:var(--go)}
+label.bgm{border-color:#f5b83d;color:#f5b83d;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px;display:block;line-height:44px}
+label.bgm.has{background:#f5b83d;color:#1a1300}
+
+.volbox{grid-column:span 4}
+.vol{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;height:42px;padding:0 12px;font-size:13px;color:var(--mute)}
+
+
+
+
+
+
+
+
+
+
+
+/* 下から出るパネル（操作部の上に重ねる） */
+
+
+.shd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+
+
+
+.picklist small{display:block;font:500 11px "Zen Kaku Gothic New",sans-serif;opacity:.75;margin-top:2px}
+.picklist button{flex-direction:column;height:auto;min-height:46px;padding:6px 8px}
+.addhint{color:var(--mute);font-size:12px;margin:0 2px}
+.picklist button.sel,.opt.sel,.qlist button.sel{background:linear-gradient(90deg,var(--a),var(--b));color:#fff;border:0;text-shadow:0 1px 2px #0005}
+#esheet{background:linear-gradient(var(--bg),var(--bg)) padding-box,linear-gradient(90deg,var(--a),var(--b)) border-box;border:1.5px solid transparent}
+.elab{color:var(--mute);font-size:12px;margin:2px 2px -2px;display:flex;justify-content:space-between}
+.elab span{font:600 12px "Overpass Mono",monospace;color:var(--ink)}
+
+
+/* 音のA・B（ABループと同じタイムライン） */
+.tl{position:relative;height:44px;touch-action:none;cursor:ew-resize;margin:0 10px 0 14px;flex:none}
+
+.range{position:absolute;top:16px;height:12px;background:#f5b83d;opacity:.55;border-radius:6px;display:none}
+.mk{position:absolute;top:14px;width:3px;height:28px;margin-left:-1.5px;display:none;background:#f5b83d}
+.mk span{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font:700 12px "Overpass Mono",monospace;color:#000;border-radius:5px;padding:1px 7px;background:#f5b83d}
+
+.shd span.now{font:600 14px "Overpass Mono",monospace;color:var(--ink)}
+.setA{border-color:#f5b83d;color:#f5b83d}
+
+
+
+
+
+
+
+
+.estart{height:52px;background:linear-gradient(90deg,var(--a),var(--b));color:#fff;border:0;font-size:16px}
+/* 並べ替え（全画面） */
+.sorter{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding:max(10px,env(safe-area-inset-top)) max(var(--edge),env(safe-area-inset-right)) max(var(--edgeB),env(safe-area-inset-bottom)) max(var(--edge),env(safe-area-inset-left))}
+.sorter .hint{color:var(--mute);font-size:12px;margin:0 2px}
+.sgrid{flex:1 1 auto;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;align-content:start;padding:2px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overscroll-behavior:contain}
+.tile{position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;border:2px solid transparent;background:#000;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .12s}
+.tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.tile i{position:absolute;left:4px;top:3px;font:600 12px "Overpass Mono",monospace;font-style:normal;background:rgba(0,0,0,.65);padding:0 6px;border-radius:99px}
+.tile.sel{border-color:var(--a)}
+.tile.lift{transform:scale(1.08);border-color:var(--b);z-index:2;box-shadow:0 6px 18px #000a}
+.sbtns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;flex:none}
+.sbtns .del{color:#ff8a8a}
+/* 横長の画面：左プレビュー、右操作 */
+@media (min-width:700px) and (min-aspect-ratio:5/4){
+  .wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:minmax(0,1fr);gap:12px;padding:12px max(var(--edge),env(safe-area-inset-right)) max(var(--edgeB),env(safe-area-inset-bottom)) max(var(--edge),env(safe-area-inset-left))}
+  .stage{height:100%}
+  .side{overflow:auto}
+  h1{font-size:20px}
+  button,.btn,.dl{height:54px;font-size:15px}
+  .go{height:60px}
+  label.bgm{line-height:52px}
+}
+@media (max-height:520px) and (min-aspect-ratio:1/1){
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:minmax(0,1fr);gap:8px;max-width:none}
+  .stage{height:100%}
+  .side{overflow:auto;gap:6px}
+  h1{display:none}
+}
+@media (max-height:760px) and (max-aspect-ratio:1/1){h1{display:none}}
+@media (min-width:700px) and (max-aspect-ratio:5/4){
+  .wrap{max-width:860px;gap:10px;padding:12px max(var(--edge),env(safe-area-inset-right)) max(var(--edgeB),env(safe-area-inset-bottom)) max(var(--edge),env(safe-area-inset-left))}
+  button,.btn,.dl{height:52px;font-size:15px}
+  .go{height:58px}
+  label.bgm{line-height:50px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <button type="button" class="empty" id="empty" style="background:none;border:0;height:auto;width:auto;font:inherit"><div><b>写真を選ぶ</b>ギャラリー・ファイル・フォルダから、まとめて選べます（何枚でも）</div></button>
+</div>
+<div class="side">
+  <h1>Slideshow</h1>
+  <div class="sheet" id="pick" hidden>
+    <div class="shd"><b id="pickT">選択</b><button id="pickX" class="okb mini">閉じる</button></div>
+    <div class="picklist" id="pickL"></div>
+  </div>
+  <div class="sheet" id="asheet" hidden>
+    <div class="shd"><b>写真を追加</b><button id="aclose" class="okb mini">閉じる</button></div>
+    <p class="addhint" id="acount">選び終わったら「閉じる」。続けて何回でも追加できます。</p>
+    <div class="picklist">
+      <label class="btn" for="file" style="flex-direction:column;height:auto;min-height:58px;padding:6px 8px">ギャラリーから選ぶ<small>まとめて選べます（選べない時は下の方法で）</small></label>
+      <label class="btn" for="file2" style="flex-direction:column;height:auto;min-height:58px;padding:6px 8px">ファイルから選ぶ<small>1枚目を長押しすると複数選択になります</small></label>
+      <label class="btn" for="file3" style="flex-direction:column;height:auto;min-height:58px;padding:6px 8px">フォルダごと読み込む<small>フォルダの写真を名前順で全部入れます</small></label>
+    </div>
+  </div>
+  <div class="sheet" id="ssheet" hidden>
+    <div class="shd"><b>音のA・B（この間をループ）</b><span class="now" id="bnow">0:00.0</span></div>
+    <div class="tl" id="btl"><div class="track"></div><div class="range" id="brange"></div>
+      <div class="mk" id="bmA"><span>A</span></div><div class="mk" id="bmB"><span>B</span></div><div class="head" id="bhead" style="left:0"></div></div>
+    <div class="times"><div><small>A</small><span id="btA">頭</span></div><div><small>B</small><span id="btB">最後</span></div><div><small>長さ</small><span id="bdur">--</span></div></div>
+    <div class="grid">
+      <button id="bback">◀ 1秒</button><button id="bplay">試聴</button><button id="bfwd">1秒 ▶</button><button id="bok" class="okb">閉じる</button>
+      <button class="setA" id="bsetA">ここを音A</button><button class="setA" id="bsetB">ここを音B</button><button id="breset">リセット</button><button id="bclr">音を外す</button>
+    </div>
+  </div>
+  <div class="sheet" id="esheet" hidden>
+    <div class="shd"><b>レンダリング</b><button id="eclose" class="okb mini">閉じる</button></div>
+    <small class="elab">長さ<span id="elen">--</span></small>
+    <button type="button" id="repAudio" class="opt">音声合わせ（音の長さぴったり）</button>
+    <div class="repwrap" id="repwrap"><div class="repmark"></div><div class="repsl" id="repsl"></div></div>
+    <small class="elab">画質</small>
+    <div class="qlist" id="qlist"><button type="button" data-v="src" id="qsrc">素材と同じ</button><button type="button" data-v="720">標準（720p）</button><button type="button" data-v="1080">高め（1080p）</button></div>
+    <button id="estart" class="estart">レンダリング開始</button>
+  </div>
+  <div class="srow"><div class="strip" id="strip"></div><button class="mode" id="bMode" aria-label="くり返し"></button></div>
+  <div class="times">
+    <div><small>写真</small><span id="tNo">--</span></div>
+    <div><small>今</small><span id="tNow">--</span></div>
+    <div><small>1周</small><span id="tCyc">--</span></div>
+  </div>
+  <div class="grid">
+    <button class="tg" id="bDur"><small>表示時間</small><b>3秒</b></button>
+    <button class="tg" id="bTr"><small>つなぎ</small><b>ディゾルブ</b></button>
+    <button class="tg" id="bZoom"><small>ゆっくりズーム</small><b>オン</b></button>
+    <button class="tg" id="bRot"><small>回転</small><b>オフ</b></button>
+    <button class="tg" id="bAsp"><small>画面の形</small><b>16:9 横</b></button>
+    <button class="tg" id="bFit"><small>写真の収め方</small><b>いっぱい</b></button>
+    <button class="add" id="bAdd">＋ 写真追加</button>
+    <button id="bSort" disabled>並べ替え</button>
+    <button class="go" id="go" disabled></button>
+    <label class="btn bgm wide2" for="bfile" id="bname">♪ 音楽を選ぶ</label>
+    <button id="bopen" disabled>音の範囲</button>
+    <button id="exp" class="exp" disabled>レンダリング</button>
+    <div class="volbox"><label class="vol"><span>音量</span><input type="range" id="bvol" min="0" max="1" step="0.05" value="1" aria-label="音量"></label></div>
+  </div>
+  <div class="bar">
+    <p class="note" id="note">写真を選んで「再生」。プレビューをタップすると全画面、もう一度タップで戻ります。</p>
+    <a id="dl" class="dl">↓ もう一度保存</a>
+  </div>
+</div>
+<div class="sorter" id="sorter" hidden>
+  <div class="shd"><b id="sortT">並べ替え</b><button id="sortX" class="okb mini">完了</button></div>
+  <p class="hint">長押しでつかんで動かせます。タップで選んで下のボタンでも移動できます。</p>
+  <div class="sgrid" id="sgrid"></div>
+  <div class="sbtns">
+    <button id="sPrev">◀ 前へ</button><button id="sNext">後へ ▶</button><button id="sDel" class="del">削除</button><button id="sRev">逆順</button>
+    <button id="sName" class="wide2">名前順</button><button id="sDate" class="wide2">日付順</button>
+  </div>
+</div>
+<input type="file" id="file" accept="image/*" multiple>
+<input type="file" id="file2" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.gif,.bmp,.avif" multiple>
+<input type="file" id="file3" webkitdirectory multiple>
+<input type="file" id="bfile" accept="audio/*,video/*">
+<audio id="bgm" preload="auto"></audio>
+</div>
+
+<script src="../mp4-muxer.js"></script>
+<script src="../common.js"></script>
+<script>
+{
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d'),stage=$('stage'),note=$('note'),bgm=$('bgm');
+const ZM=0.12,ROT=2.5*Math.PI/180; // 回転：1枚の間に2.5°だけ、写真ごとに時計回り／反時計回りを交互に // ズーム量（1枚の間に12%寄る）
+const DURS=[0.5,1,1.5,2,2.5,3,4,5,6,8,10,15];
+const ASP={auto:{t:'写真に合わせる',d:'縦と横が混ざっていたら両方が収まる広さに'},'1:1':{r:[1,1],t:'1:1 正方形'},'16:9':{r:[16,9],t:'16:9 横'},'9:16':{r:[9,16],t:'9:16 縦'},'4:5':{r:[4,5],t:'4:5 縦長'},
+  fold:{r:BL.FOLD.inner,t:'Fold7 開いた画面',d:'内側の画面いっぱい（1968×2184 の比率）'},cover:{r:BL.FOLD.cover,t:'Fold7 閉じた画面',d:'外側の画面いっぱい（21:9 の縦）'}};
+const set={v:3,dur:3,tr:'dis',zoom:true,rot:false,mode:'loop',asp:'auto',fit:'contain',vol:1,q:'src',rep:'1'};
+try{const o=JSON.parse(localStorage.getItem('pslide_set')||'{}');if(!o.v||o.v<2){delete o.asp;delete o.fit}if(!o.v||o.v<3)delete o.q;Object.assign(set,o,{v:3});if(!ASP[set.asp])set.asp='auto'}catch(e){}
+const saveSet=()=>{try{localStorage.setItem('pslide_set',JSON.stringify(set))}catch(e){}};
+let photos=[],nextId=1,playing=false,t=0,last=0,dirty=true,busy=false,cancelReq=false;
+let aFile=null,bUrl=null;
+
+const col=new Intl.Collator('ja',{numeric:true});
+const fmt=s=>{if(s==null||!isFinite(s))return'--';const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1)};
+// ===== 並び（ループ：1→N、バウンド：1→N→…→2 を繰り返す。ズームはどちらも常にイン） =====
+function seq(){const n=photos.length,s=[];for(let i=0;i<n;i++)s.push([i,1]);if(set.mode==='bounce'&&n>2)for(let i=n-2;i>=1;i--)s.push([i,-1]);return s}
+const X=()=>set.tr==='cut'?0:Math.min(1,set.dur*0.35); // ディゾルブの長さ
+const period=()=>seq().length*set.dur;
+// 「写真に合わせる」：全部同じ形ならその形、縦横が混ざっていたら長辺をそろえて全部が収まる広さ
+function ratio(){if(set.asp!=='auto'){const[a,b]=ASP[set.asp].r;return a/b}
+  if(!photos.length)return 16/9;const r0=photos[0].r;if(photos.every(p=>Math.abs(p.r/r0-1)<0.02))return r0;
+  let mw=0,mh=0;for(const p of photos){const w=p.r>=1?1:p.r,h=p.r>=1?1/p.r:1;mw=Math.max(mw,w);mh=Math.max(mh,h)}return mw/mh}
+const shapeKey=()=>set.asp+':'+ratio().toFixed(4);
+// 素材と同じ：Fold7は画面の画素そのまま、それ以外は写真の解像度（最大4K相当）
+function fullSize(){if(set.asp==='fold')return[...BL.FOLD.inner];if(set.asp==='cover')return[...BL.FOLD.cover];
+  const R=Math.max(9/21,Math.min(21/9,ratio()));let sh=1080;for(const p of photos)if(p.nw)sh=Math.max(sh,Math.min(p.nw,p.nh));sh=Math.min(sh,2160);
+  let W=R>=1?sh*R:sh,H=R>=1?sh:sh/R;const k=Math.min(1,4096/Math.max(W,H),Math.sqrt(8.8e6/(W*H)));W*=k;H*=k;return[Math.round(W/2)*2,Math.round(H/2)*2]}
+function outSize(q){if(q==='src')return fullSize();const short=q==='720'?720:1080,R=Math.max(9/21,Math.min(21/9,ratio()));return R>=1?[Math.round(short*R/2)*2,short]:[short,Math.round(short/R/2)*2]}
+const ratioText=()=>{const[W,H]=outSize('1080');if(set.asp==='auto'&&photos.length>1&&!photos.every(p=>Math.abs(p.r/photos[0].r-1)<0.02)&&Math.abs(W/H-1)<0.01)return '1:1';const g=(a,b)=>b?g(b,a%b):a;let a=W,b=H;const d=g(a,b);a/=d;b/=d;return a<=32&&b<=32?a+':'+b:(W/H).toFixed(2)+':1'};
+function where(tt){const s=seq();if(!s.length)return null;const D=set.dur,P=s.length*D;tt=((tt%P)+P)%P;const k=Math.min(s.length-1,Math.floor(tt/D));return{s,k,loc:tt-k*D,D,P}}
+
+// ===== 写真の画像（必要な分だけ書き出しサイズで読み込み、使わないものは捨てる） =====
+const cache=new Map();let lq=Promise.resolve(),cq='1080';const maxC=()=>cq==='src'?5:8;
+const ckey=ph=>ph.id+'|'+shapeKey()+'|'+set.fit+'|'+cq;
+function needDims(ph){const[W,H]=outSize(cq),r=ph.r;const s=(set.fit==='cover'?Math.max(W/r,H):Math.min(W/r,H))*(1+ZM)*(set.fit==='cover'?1.1:1);let w=r*s,h=s;const cap=cq==='src'?16e6:9e6;if(w*h>cap){const k=Math.sqrt(cap/(w*h));w*=k;h*=k}return[Math.max(2,Math.round(w)),Math.max(2,Math.round(h))]}
+function ensure(ph){const k=ckey(ph);let e=cache.get(k);
+  if(!e){e={bm:null,used:0,dead:false};const[w,h]=needDims(ph);
+    e.p=lq=lq.then(async()=>{if(e.dead)return;try{e.bm=await createImageBitmap(ph.file,{resizeWidth:w,resizeHeight:h,resizeQuality:'high'})}catch(err){e.err=true}
+      if(e.dead&&e.bm){e.bm.close();e.bm=null}dirty=true});
+    cache.set(k,e)}
+  e.used=performance.now();return e}
+function evict(keep){if(cache.size<=maxC())return;const list=[...cache.entries()].filter(([k])=>!keep.has(k)).sort((a,b)=>a[1].used-b[1].used);
+  while(cache.size>maxC()&&list.length){const[k,e]=list.shift();e.dead=true;if(e.bm){e.bm.close();e.bm=null}cache.delete(k)}}
+function clearCache(){cache.forEach(e=>{e.dead=true;if(e.bm)e.bm.close();e.bm=null});cache.clear()}
+const bmOf=i=>{const ph=photos[i];if(!ph)return null;const e=cache.get(ckey(ph));if(e){e.used=performance.now();return e.bm}return null};
+function prefetch(tt){const w=where(tt);if(!w)return;const keep=new Set();for(let d=0;d<4;d++){const ph=photos[w.s[(w.k+d)%w.s.length][0]];keep.add(ckey(ph));ensure(ph)}evict(keep)}
+
+// ===== 1コマを描く（プレビューと書き出しで共通） =====
+function drawAt(c,W,H,tt,get){
+  const w=where(tt);if(!w)return null;const{s,k,loc,D}=w,x=X();
+  const i0=s[k][0],k2=(k+1)%s.length,i1=s[k2][0];
+  let a=0;if(x>0&&loc>D-x)a=(loc-(D-x))/x;
+  const b0=get(i0),b1=a>0?get(i1):null;
+  if(!b0)return{i:i0,k,ok:false};
+  c.globalCompositeOperation='source-over';c.globalAlpha=1;c.fillStyle='#000';c.fillRect(0,0,W,H);
+  const one=(slot,lt,alpha,bm)=>{const[i,dir]=s[slot],ph=photos[i];let q=(lt+x)/(D+x);q=Math.max(0,Math.min(1,q)); // バウンドの戻りでもズームは常にイン
+    const z=set.zoom?1+ZM*q:1,sc=(set.fit==='cover'?Math.max(W/ph.r,H):Math.min(W/ph.r,H))*z,dw=ph.r*sc,dh=sc;
+    c.globalAlpha=alpha;
+    if(set.rot){const sg=slot%2?-1:1,ang=sg*ROT*(q-0.5);
+      // 「いっぱい」の時は回転で角に黒が出ないよう少しだけ大きく
+      const k=set.fit==='cover'?Math.cos(Math.abs(ang))+Math.sin(Math.abs(ang))*Math.max(W/H,H/W):1;
+      c.save();c.translate(W/2,H/2);c.rotate(ang);c.drawImage(bm,-dw*k/2,-dh*k/2,dw*k,dh*k);c.restore()}
+    else c.drawImage(bm,(W-dw)/2,(H-dh)/2,dw,dh)};
+  if(a>0&&b1){c.globalCompositeOperation='lighter';one(k,loc,1-a,b0);one(k2,loc-D,a,b1);c.globalCompositeOperation='source-over'}
+  else one(k,loc,1,b0);
+  c.globalAlpha=1;return{i:a>0.5&&b1?i1:i0,k,ok:true};
+}
+
+// ===== プレビュー =====
+let curI=-1,scrub=null;
+function resizeCv(){const[W,H]=outSize('1080');if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}dirty=true}
+function loop(now){
+  const dt=Math.min(0.1,(now-last)/1000);last=now;
+  if(playing&&!busy&&!scrub){t+=dt;dirty=true}
+  if(photos.length&&!busy){prefetch(t);if(dirty){const r=drawAt(ctx,cv.width,cv.height,t,bmOf);if(r&&r.ok)dirty=false;if(r)setCur(r.i)}}
+  if(!busy)uiTimes();
+  requestAnimationFrame(loop);
+}
+function uiTimes(){const P=period();$('tNo').textContent=photos.length?(curI+1)+' / '+photos.length+'枚':'--';$('tNow').textContent=photos.length?fmt(((t%P)+P)%P):'--';$('tCyc').textContent=photos.length?fmt(P):'--'}
+function setCur(i){if(i===curI)return;curI=i;const s=$('strip');[...s.children].forEach((c,j)=>c.classList.toggle('cur',j===i));
+  const el=s.children[i];if(el&&playing&&!scrub){const l=el.offsetLeft,r=l+el.offsetWidth;if(l<s.scrollLeft||r>s.scrollLeft+s.clientWidth)s.scrollTo({left:l-s.clientWidth/2+el.offsetWidth/2,behavior:'smooth'})}}
+const ICON_PP='<svg viewBox="0 0 48 28" width="44" height="26" aria-hidden="true"><path d="M8 9h30m-6-5 6 5-6 5M40 19H10m6-5-6 5 6 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',ICON_FW='<svg viewBox="0 0 48 28" width="44" height="26" aria-hidden="true"><path d="M8 18h30m-6-5 6 5-6 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M38 9C30 1 16 1 9 8" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/><path d="M8 3v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const IC_PLAY='<svg class="gi" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.2v11.6c0 .6.7 1 1.2.7l9-5.8c.5-.3.5-1 0-1.3l-9-5.8C6.7 3.2 6 3.6 6 4.2z" fill="currentColor"/></svg>',IC_PAUSE='<svg class="gi" viewBox="0 0 20 20" aria-hidden="true"><rect x="5.5" y="4" width="2.4" height="12" rx="1.2" fill="currentColor"/><rect x="12.1" y="4" width="2.4" height="12" rx="1.2" fill="currentColor"/></svg>';
+function setGo(){$('go').innerHTML=(playing?IC_PAUSE:IC_PLAY)+'<span>'+(playing?'停止':'再生')+'</span>';$('go').classList.toggle('on',playing)}
+function audSync(){if(!bUrl)return;const d=bgm.duration;if(d&&isFinite(d)){const L=bLen();bgm.currentTime=(bA||0)+((t%L)+L)%L}}
+function play(on){if(!photos.length)on=false;playing=on;setGo();last=performance.now();
+  bPrev=false;if(on&&bUrl){audSync();bgm.play().catch(()=>{})}else bgm.pause();if(!$('ssheet').hidden)bui()}
+$('go').onclick=()=>{if(busy)return;play(!playing)};
+
+// 設定を変えても、今見ている写真の位置はそのまま
+function keepPos(change){const w=where(t);let id=null,frac=0,dir=1;if(w){const[i,d]=w.s[w.k];id=photos[i].id;frac=w.loc/w.D;dir=d}
+  change();
+  if(id!=null){const i=photos.findIndex(p=>p.id===id),s=seq();if(i>=0){let k=s.findIndex(x=>x[0]===i&&x[1]===dir);if(k<0)k=s.findIndex(x=>x[0]===i);t=(k+frac)*set.dur}else t=0}
+  dirty=true;if(playing)audSync()}
+
+// ===== ボタン表示 =====
+function paint(){
+  const b=(id,v,cls)=>{const e=$(id);e.querySelector('b').textContent=v;e.classList.toggle('on',cls==='on');e.classList.toggle('alt',cls==='alt')};
+  b('bDur',set.dur+'秒');b('bTr',set.tr==='cut'?'カット':'ディゾルブ',set.tr==='cut'?'':'on');b('bZoom',set.zoom?'オン':'オフ',set.zoom?'on':'');b('bRot',set.rot?'オン':'オフ',set.rot?'on':'');
+  {const m=$('bMode'),bo=set.mode==='bounce';m.innerHTML=bo?ICON_PP:ICON_FW;m.title=bo?'バウンド（往復）':'ループ（一方向）';m.classList.toggle('fwd',!bo)}b('bAsp',set.asp==='auto'?'自動 '+(photos.length?ratioText():''):({'1:1':'1:1 正方形',fold:'Fold7 内',cover:'Fold7 外'}[set.asp]||ASP[set.asp].t));b('bFit',set.fit==='cover'?'いっぱい':'全体を表示');
+  const has=photos.length>0;$('go').disabled=!has;$('bSort').disabled=!has;$('exp').disabled=!has||busy;stage.classList.toggle('has',has);
+  $('bvol').value=set.vol;bgm.volume=set.vol;
+  const sk=shapeKey();if(sk!==lastShape){lastShape=sk;clearCache();resizeCv()}
+}
+let lastShape='';
+// 選択パネル（Androidの標準の選択画面を使わない）
+function pick(title,opts,cur,fn){$('pickT').textContent=title;$('pickL').innerHTML=opts.map((o,i)=>'<button type="button" data-i="'+i+'"'+(o.v===cur?' class="sel"':'')+'>'+o.t+(o.d?'<small>'+o.d+'</small>':'')+'</button>').join('');
+  $('pickL').onclick=e=>{const x=e.target.closest('[data-i]');if(!x)return;fn(opts[+x.dataset.i].v);$('pick').hidden=true};$('esheet').hidden=true;$('asheet').hidden=true;$('ssheet').hidden=true;$('pick').hidden=false}
+$('pickX').onclick=()=>{$('pick').hidden=true};
+$('bDur').onclick=()=>{if(busy)return;pick('1枚の表示時間',DURS.map(d=>({v:d,t:d+'秒'})),set.dur,v=>{keepPos(()=>{set.dur=v});saveSet();paint()})};
+$('bTr').onclick=()=>{if(busy)return;set.tr=set.tr==='cut'?'dis':'cut';dirty=true;saveSet();paint()};
+$('bZoom').onclick=()=>{if(busy)return;set.zoom=!set.zoom;dirty=true;saveSet();paint()};
+$('bRot').onclick=()=>{if(busy)return;set.rot=!set.rot;clearCache();dirty=true;saveSet();paint();if(set.rot)note.textContent='回転：写真ごとに時計回り・反時計回りを交互に、じわーっと少しだけ回ります。'};
+$('bMode').onclick=()=>{if(busy)return;keepPos(()=>{set.mode=set.mode==='bounce'?'loop':'bounce'});saveSet();paint();
+  note.textContent=set.mode==='bounce'?'バウンド：最後まで行ったら逆の順番で1枚目まで戻り、また進みます（ズームはずっとイン）。':'ループ：最後まで行ったら1枚目に戻ってくり返します。'};
+$('bAsp').onclick=()=>{if(busy)return;pick('画面の形（レンダリングも同じ形）',Object.keys(ASP).map(k=>({v:k,t:ASP[k].t+(k==='auto'&&photos.length?'（今は '+(set.asp==='auto'?ratioText():'')+'）':''),d:ASP[k].d})),set.asp,v=>{set.asp=v;saveSet();paint();note.textContent='画面の形：'+(v==='auto'?'写真に合わせる（'+ratioText()+'）':ASP[v].t)+'。レンダリングも同じ形になります。'})};
+$('bFit').onclick=()=>{if(busy)return;set.fit=set.fit==='cover'?'contain':'cover';clearCache();dirty=true;saveSet();paint();
+  note.textContent=set.fit==='cover'?'いっぱい：画面に合わせて写真のはみ出す部分を切ります。':'全体を表示：写真全体を見せ、余白は黒にします。'};
+$('bvol').oninput=()=>{set.vol=+$('bvol').value;bgm.volume=set.vol;saveSet()};
+
+// ===== 写真の読み込み =====
+let loading=false;
+const natSize=f=>new Promise(res=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{res([im.naturalWidth,im.naturalHeight]);URL.revokeObjectURL(u)};im.onerror=()=>{res(null);URL.revokeObjectURL(u)};im.src=u});
+async function addFiles(list){
+  const IMG=/\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i;const files=[...list].filter(f=>(f.type&&f.type.startsWith('image/'))||IMG.test(f.name));
+  if(!files.length){note.textContent='写真が見つかりませんでした。';return}
+  loading=true;let ok=0,ng=0;const first=!photos.length;
+  for(const f of files){
+    note.textContent='写真を読み込み中… '+(ok+ng+1)+' / '+files.length;
+    try{const tb=await createImageBitmap(f,{resizeHeight:240,resizeQuality:'medium'});
+      const r=tb.width/tb.height,c=document.createElement('canvas');c.width=c.height=160;const x=c.getContext('2d');
+      const s=Math.max(160/tb.width,160/tb.height);x.drawImage(tb,(160-tb.width*s)/2,(160-tb.height*s)/2,tb.width*s,tb.height*s);tb.close();
+      const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.7));
+      const ns=await natSize(f);
+      photos.push({id:nextId++,file:f,name:f.name,lm:f.lastModified||0,r,nw:ns?ns[0]:0,nh:ns?ns[1]:0,thumb:URL.createObjectURL(blob)});ok++;
+      if(ok%6===1){renderStrip();paint();dirty=true}
+    }catch(e){ng++}
+  }
+  loading=false;renderStrip();paint();dirty=true;if(first){t=0;resizeCv()}
+  note.textContent=ok+'枚読み込みました（全部で'+photos.length+'枚）'+(ng?'（'+ng+'枚は開けませんでした）':'')+'。「並べ替え」で順番を変えられます。';
+  $('acount').textContent='今 '+photos.length+'枚。続けて追加するか「閉じる」。'+(ng?'（'+ng+'枚は開けませんでした）':'');
+}
+$('file').onchange=e=>{const f=e.target.files;if(f&&f.length)addFiles(f);e.target.value=''};
+$('file2').onchange=$('file').onchange;
+$('file3').onchange=e=>{const f=[...(e.target.files||[])];e.target.value='';if(!f.length)return;f.sort((a,b)=>col.compare(a.webkitRelativePath||a.name,b.webkitRelativePath||b.name));addFiles(f)};
+function openAdd(){if(busy)return;$('pick').hidden=true;$('esheet').hidden=true;$('acount').textContent=photos.length?'今 '+photos.length+'枚。続けて追加できます。':'選び終わったら「閉じる」。続けて何回でも追加できます。';$('asheet').hidden=false}
+$('bAdd').onclick=openAdd;$('empty').onclick=openAdd;$('aclose').onclick=()=>{$('asheet').hidden=true};
+function renderStrip(){const s=$('strip');
+  if(!photos.length){s.innerHTML='<div class="none">まだ写真がありません</div>';return}
+  s.innerHTML=photos.map((p,i)=>'<div class="th'+(i===curI?' cur':'')+'" data-i="'+i+'"><img src="'+p.thumb+'" alt=""><i>'+(i+1)+'</i></div>').join('')}
+// 写真の帯：タップ／指を横にすべらせると、指の下の写真を表示（端に来たら帯が自動で流れる）
+function jumpTo(i){const s=seq(),k=s.findIndex(q=>q[0]===i);if(k<0)return;t=k*set.dur;dirty=true;setCur(i)}
+{const S=$('strip');
+ const at=x=>{const r=S.getBoundingClientRect(),el=document.elementFromPoint(Math.max(r.left+2,Math.min(r.right-2,x)),r.top+r.height/2),th=el&&el.closest&&el.closest('.th');if(th&&+th.dataset.i!==curI)jumpTo(+th.dataset.i)};
+ const edge=()=>{if(!scrub)return;const r=S.getBoundingClientRect(),x=scrub.x;let v=0;if(x<r.left+36)v=-Math.min(14,(r.left+36-x)/2+3);else if(x>r.right-36)v=Math.min(14,(x-(r.right-36))/2+3);
+   if(v){S.scrollLeft+=v;at(x)}scrub.raf=requestAnimationFrame(edge)};
+ S.addEventListener('pointerdown',e=>{if(busy||!photos.length)return;S.setPointerCapture(e.pointerId);scrub={x:e.clientX,raf:0};at(e.clientX);scrub.raf=requestAnimationFrame(edge)});
+ S.addEventListener('pointermove',e=>{if(!scrub)return;scrub.x=e.clientX;at(e.clientX)});
+ const end=()=>{if(!scrub)return;cancelAnimationFrame(scrub.raf);scrub=null;last=performance.now();if(playing)audSync()};
+ S.addEventListener('pointerup',end);S.addEventListener('pointercancel',end);}
+
+// ===== 並べ替え =====
+let sel=-1,pd=null;
+function openSort(){if(busy)return;play(false);sel=curI;$('sorter').hidden=false;renderGrid()}
+$('bSort').onclick=openSort;
+$('sortX').onclick=()=>{$('sorter').hidden=true;renderStrip();paint()};
+function renderGrid(){$('sortT').textContent='並べ替え（'+photos.length+'枚）';
+  $('sgrid').innerHTML=photos.map((p,i)=>'<div class="tile'+(i===sel?' sel':'')+(pd&&pd.drag&&pd.i===i?' lift':'')+'" data-i="'+i+'"><img src="'+p.thumb+'" alt=""><i>'+(i+1)+'</i></div>').join('');
+  const has=sel>=0&&sel<photos.length;$('sPrev').disabled=!has||sel===0;$('sNext').disabled=!has||sel===photos.length-1;$('sDel').disabled=!has;
+  $('sDel').textContent='削除';delete $('sDel').dataset.sure}
+function changed(fn){keepPos(fn);renderGrid();renderStrip();paint()}
+function moveTo(from,to){if(from===to||to<0||to>=photos.length)return;changed(()=>{const[p]=photos.splice(from,1);photos.splice(to,0,p)})}
+$('sPrev').onclick=()=>{if(sel>0){moveTo(sel,sel-1);sel--;renderGrid()}};
+$('sNext').onclick=()=>{if(sel>=0&&sel<photos.length-1){moveTo(sel,sel+1);sel++;renderGrid()}};
+$('sDel').onclick=()=>{const d=$('sDel');if(sel<0)return;
+  if(!d.dataset.sure){d.dataset.sure=1;d.textContent='本当に？';setTimeout(()=>{if(d.dataset.sure){delete d.dataset.sure;d.textContent='削除'}},3000);return}
+  const p=photos[sel];changed(()=>{photos.splice(sel,1)});URL.revokeObjectURL(p.thumb);sel=Math.min(sel,photos.length-1);
+  if(!photos.length){$('sorter').hidden=true;t=0;curI=-1}renderGrid()};
+$('sRev').onclick=()=>{const id=photos[sel]?.id;changed(()=>photos.reverse());sel=photos.findIndex(p=>p.id===id);renderGrid()};
+$('sName').onclick=()=>{const id=photos[sel]?.id;changed(()=>photos.sort((a,b)=>col.compare(a.name,b.name)));sel=photos.findIndex(p=>p.id===id);renderGrid()};
+$('sDate').onclick=()=>{const id=photos[sel]?.id;changed(()=>photos.sort((a,b)=>a.lm-b.lm||col.compare(a.name,b.name)));sel=photos.findIndex(p=>p.id===id);renderGrid()};
+// 長押しでつかんで移動
+const G=$('sgrid');let asc=0,lastY=0;
+G.addEventListener('contextmenu',e=>e.preventDefault());
+G.addEventListener('pointerdown',e=>{const tile=e.target.closest('.tile');if(!tile)return;
+  pd={i:+tile.dataset.i,x:e.clientX,y:e.clientY,pid:e.pointerId,drag:false,timer:setTimeout(()=>{if(!pd)return;pd.drag=true;try{G.setPointerCapture(pd.pid)}catch(_){}sel=pd.i;try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}renderGrid();autoScroll()},280)};lastY=e.clientY});
+G.addEventListener('pointermove',e=>{if(!pd)return;lastY=e.clientY;
+  if(!pd.drag){if(Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>10){clearTimeout(pd.timer);pd=null}return}
+  const el=document.elementFromPoint(e.clientX,e.clientY),tile=el&&el.closest&&el.closest('.tile');
+  if(tile){const to=+tile.dataset.i;if(to!==pd.i){const from=pd.i;pd.i=to;sel=to;moveTo(from,to)}}});
+G.addEventListener('touchmove',e=>{if(pd&&pd.drag)e.preventDefault()},{passive:false});
+const endP=()=>{if(!pd)return;clearTimeout(pd.timer);const wasDrag=pd.drag,i=pd.i;pd=null;cancelAnimationFrame(asc);
+  if(!wasDrag){sel=sel===i?-1:i}renderGrid()};
+G.addEventListener('pointerup',endP);G.addEventListener('pointercancel',()=>{if(pd&&!pd.drag){clearTimeout(pd.timer);pd=null}else endP()});
+function autoScroll(){if(!pd||!pd.drag)return;const r=G.getBoundingClientRect();
+  if(lastY<r.top+50)G.scrollTop-=10;else if(lastY>r.bottom-50)G.scrollTop+=10;asc=requestAnimationFrame(autoScroll)}
+
+// ===== 音楽 =====
+// 音楽・動画の音：A〜Bの間をループ（Bまで来たら瞬時にAへ戻る。範囲なしなら最後まで流れて頭へ）
+let bA=null,bB=null,bPrev=false;
+const bEnd=()=>bB!=null?bB:(bgm.duration||0),bLen=()=>Math.max(0.05,bEnd()-(bA||0));
+bgm.onended=()=>{if(playing||bPrev){bgm.currentTime=bA||0;bgm.play().catch(()=>{})}};
+(function bw(){if(bUrl&&!bgm.paused&&bB!=null&&bgm.currentTime>=bB)bgm.currentTime=bA||0;if(!$('ssheet').hidden)bui();requestAnimationFrame(bw)})();
+const bpct=x=>((bgm.duration?x/bgm.duration:0)*100)+'%';
+function bui(){const d=bgm.duration||0;$('bdur').textContent=d?fmt(bLen()):'--';$('bnow').textContent=fmt(bgm.currentTime);$('bhead').style.left=bpct(bgm.currentTime);
+  $('btA').textContent=bA!=null?fmt(bA):'頭';$('btB').textContent=bB!=null?fmt(bB):'最後';
+  $('bmA').style.display=bA!=null?'block':'none';$('bmA').style.left=bpct(bA||0);$('bmB').style.display=bB!=null?'block':'none';$('bmB').style.left=bpct(bB||0);
+  const rg=$('brange');if(d&&(bA!=null||bB!=null)){rg.style.display='block';rg.style.left=bpct(bA||0);rg.style.width=((bEnd()-(bA||0))/d*100)+'%'}else rg.style.display='none';
+  const pl=(!bgm.paused&&bPrev)?'停止':'試聴';if($('bplay').textContent!==pl)$('bplay').textContent=pl}
+function bseek(x){const d=bgm.duration||0;bgm.currentTime=Math.max(0,Math.min(d,x));bui()}
+$('bopen').onclick=()=>{if(busy||!bUrl)return;$('pick').hidden=true;$('esheet').hidden=true;$('asheet').hidden=true;$('ssheet').hidden=false;bui()};
+$('bok').onclick=()=>{if(bPrev){bgm.pause();bPrev=false}$('ssheet').hidden=true;if(playing)audSync()};
+$('bplay').onclick=()=>{if(!bgm.paused&&bPrev){bgm.pause();bPrev=false}else{if(playing)play(false);bPrev=true;if((bB!=null&&bgm.currentTime>=bB)||bgm.currentTime<(bA||0))bgm.currentTime=bA||0;bgm.play().catch(()=>{})}bui()};
+$('bback').onclick=()=>bseek(bgm.currentTime-1);$('bfwd').onclick=()=>bseek(bgm.currentTime+1);
+$('bsetA').onclick=()=>{bA=bgm.currentTime;if(bB!=null&&bB<=bA)bB=null;bui();elen()};
+$('bsetB').onclick=()=>{const x=bgm.currentTime;if(x>(bA||0)+0.05){bB=x;bgm.currentTime=bA||0}bui();elen()};
+$('breset').onclick=()=>{bA=null;bB=null;bui();elen()};
+{const t2=$('btl');const sk=e=>{const r=t2.getBoundingClientRect();bseek((e.clientX-r.left)/r.width*(bgm.duration||0))};
+ t2.onpointerdown=e=>{t2.setPointerCapture(e.pointerId);sk(e);t2.onpointermove=sk};t2.onpointerup=t2.onpointercancel=()=>{t2.onpointermove=null}}
+$('bfile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(bUrl)URL.revokeObjectURL(bUrl);aFile=f;bUrl=URL.createObjectURL(f);bgm.src=bUrl;bgm.volume=set.vol;bA=null;bB=null;
+  const n=$('bname');n.textContent='♪ '+f.name;n.classList.add('has');$('bopen').disabled=false;
+  bgm.onloadedmetadata=()=>{if(playing){audSync();bgm.play().catch(()=>{})}elen();bui()};note.textContent='音楽「'+f.name+'」を当てました。「音の範囲」でA〜Bを決められます。'};
+$('bclr').onclick=()=>{if(busy)return;bgm.pause();bPrev=false;bgm.removeAttribute('src');bgm.load();if(bUrl)URL.revokeObjectURL(bUrl);bUrl=null;aFile=null;bA=null;bB=null;$('ssheet').hidden=true;
+  const n=$('bname');n.textContent='♪ 音楽を選ぶ';n.classList.remove('has');$('bopen').disabled=true};
+
+// ===== 書き出し画面 =====
+const RS=$('repsl'),ITEM=42;let repIgnore=false,repT=0,lastNum=+set.rep||1;
+RS.innerHTML=Array.from({length:30},(_,i)=>'<button type="button" data-n="'+(i+1)+'">'+(i+1)+'</button>').join('');
+function repScrollTo(n,smooth){repIgnore=true;RS.scrollTo({left:(n-1)*ITEM,behavior:smooth?'smooth':'auto'});clearTimeout(repT);repT=setTimeout(()=>{repIgnore=false},smooth?450:80)}
+function elen(){const P=period();let s;if(set.rep==='audio'){const d=bgm.duration;s=bUrl&&d&&isFinite(d)?fmt(bLen())+'（音の'+(bA!=null||bB!=null?'A〜B':'長さ')+'）':'音楽を選んでください'}else s=fmt(P*+set.rep)+'（1周 '+fmt(P)+' × '+set.rep+'回）';$('elen').textContent=s}
+function repPaint(){const isA=set.rep==='audio';$('repAudio').classList.toggle('sel',isA);$('repwrap').classList.toggle('off',isA);
+  const n=isA?lastNum:+set.rep;[...RS.children].forEach(b=>b.classList.toggle('sel',!isA&&+b.dataset.n===n));
+  const[fw,fh]=fullSize();$('qsrc').textContent='素材と同じ（'+fw+'×'+fh+'）';
+  [...$('qlist').children].forEach(b=>b.classList.toggle('sel',b.dataset.v===set.q));elen()}
+function setRep(v){set.rep=String(v);if(v!=='audio')lastNum=+v;saveSet();repPaint()}
+$('repAudio').onclick=()=>setRep('audio');
+RS.addEventListener('scroll',()=>{if(repIgnore)return;clearTimeout(repT);repT=setTimeout(()=>{setRep(Math.max(1,Math.min(30,Math.round(RS.scrollLeft/ITEM)+1)))},120)});
+RS.onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;setRep(+b.dataset.n);repScrollTo(+b.dataset.n,true)};
+$('qlist').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;set.q=b.dataset.v;saveSet();repPaint()};
+$('exp').onclick=()=>{if(busy){cancelReq=true;return}$('pick').hidden=true;$('asheet').hidden=true;if(!$('ssheet').hidden)$('bok').onclick();$('esheet').hidden=false;repPaint();requestAnimationFrame(()=>repScrollTo(lastNum,false))};
+$('eclose').onclick=()=>{$('esheet').hidden=true};
+$('estart').onclick=()=>{if(set.rep==='audio'&&!aFile){note.textContent='「音声合わせ」でレンダリングするには、先に音楽を選んでください。';return}$('esheet').hidden=true;exportNow()};
+
+// ===== 書き出し（WebCodecs＋MP4：実時間を待たずに作る） =====
+const pickVideoCfg=BL.pickVideoCfg,pickAudioCfg=BL.pickAudioCfg; // 共通部分（common.js）
+function saveBlob(blob){const d=$('dl');if(d.href)URL.revokeObjectURL(d.href);
+  const name='slideshow_'+new Date(Date.now()+9*3600e3).toISOString().slice(0,19).replace(/[-:T]/g,'')+'.mp4';
+  d.href=URL.createObjectURL(blob);d.download=name;d.classList.add('ready');try{d.click()}catch(e){}
+  note.textContent='レンダリング完了。動画を端末に保存しました（MP4 '+(blob.size/1048576).toFixed(1)+'MB）。'}
+async function exportNow(){
+  if(!window.VideoEncoder||!window.Mp4Muxer){note.textContent='このブラウザはレンダリングに対応していません（Chromeで開いてください）。';return}
+  play(false);busy=true;cancelReq=false;$('exp').disabled=false;$('exp').classList.add('rec');$('exp').textContent='中止';$('dl').classList.remove('ready');
+  cq=set.q==='src'?'src':'1080';if(cq==='src')clearCache();
+  try{await render()}catch(e){console.warn(e);note.textContent=cancelReq?'レンダリングを中止しました。':'レンダリングに失敗しました（'+(e&&e.message||e)+'）。'}
+  if(cq!=='1080'){cq='1080';clearCache()}
+  busy=false;$('exp').classList.remove('rec');$('exp').textContent='レンダリング';paint();dirty=true;
+}
+async function render(){
+  const[W,H]=outSize(set.q),F=30,P=period();
+  let aud=null;
+  if(aFile&&window.AudioEncoder){note.textContent='音声を準備しています…';const cfg=await pickAudioCfg();
+    if(cfg){try{const oac=new OfflineAudioContext({numberOfChannels:2,length:1,sampleRate:48000});const buf=await oac.decodeAudioData(await aFile.arrayBuffer());aud={buf,cfg}}catch(e){}}
+    if(!aud)note.textContent='音声を読み込めなかったので、音なしでレンダリングします…'}
+  if(set.rep==='audio'&&!aud)throw new Error('音声を読み込めませんでした');
+  if(aud){const d=aud.buf.duration,a=Math.min(bA||0,d-0.05),b=Math.min(bB!=null?bB:d,d);aud.a=a;aud.len=Math.max(0.05,b-a)}
+  const T=set.rep==='audio'?aud.len:P*+set.rep,N=Math.max(1,Math.round(T*F));
+  const vcfg=await pickVideoCfg(W,H,F);if(!vcfg)throw new Error('この端末ではこのサイズの動画を作れません');
+  const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:W,height:H,frameRate:F},
+    audio:aud?{codec:aud.cfg.codec==='opus'?'opus':'aac',numberOfChannels:2,sampleRate:48000}:undefined,fastStart:'in-memory',firstTimestampBehavior:'offset'});
+  let err=null;const ve=new VideoEncoder({output:(c,m)=>muxer.addVideoChunk(c,m),error:e=>{err=e}});ve.configure(vcfg);
+  const rc=document.createElement('canvas');rc.width=W;rc.height=H;const rx=rc.getContext('2d');
+  const wait=async q=>{while(q.encodeQueueSize>6&&!err)await new Promise(r=>setTimeout(r,2))};
+  const getE=i=>bmOf(i);
+  for(let k=0;k<N;k++){
+    if(err)throw err;if(cancelReq)throw new Error('stop');
+    const tt=k/F,w=where(tt),need=[w.s[w.k][0],w.s[(w.k+1)%w.s.length][0]],keep=new Set();
+    for(const i of need){const e=ensure(photos[i]);keep.add(ckey(photos[i]));if(!e.bm&&!e.err)await e.p}
+    // 次の写真も先に読み込んでおく
+    for(let d=2;d<4;d++){const ph=photos[w.s[(w.k+d)%w.s.length][0]];keep.add(ckey(ph));ensure(ph)}
+    evict(keep);
+    const r=drawAt(rx,W,H,tt,getE);if(r&&!r.ok){rx.fillStyle='#000';rx.fillRect(0,0,W,H)}
+    if(k%3===0){ctx.drawImage(rc,0,0,cv.width,cv.height);setCur(r?r.i:0)}
+    const vf=new VideoFrame(rc,{timestamp:Math.round(k*1e6/F),duration:Math.round(1e6/F)});ve.encode(vf,{keyFrame:k%(F*2)===0});vf.close();
+    await wait(ve);
+    if(k%10===0)note.textContent='レンダリング中… '+Math.round(k/N*(aud?90:100))+'%（この画面のままでお待ちください）';
+  }
+  await ve.flush();ve.close();
+  if(aud){
+    const SR=48000,S=Math.round(N/F*SR),src=aud.buf,ch0=src.getChannelData(0),ch1=src.numberOfChannels>1?src.getChannelData(1):ch0,s0=Math.round(aud.a*SR),len=Math.max(1,Math.min(ch0.length-s0,Math.round(aud.len*SR))),g=set.vol;
+    const fade=Math.round(0.3*SR),cut=S<len||set.rep!=='audio'; // 音楽の途中で終わるときは最後を短くフェードアウト
+    const ae=new AudioEncoder({output:(c,m)=>muxer.addAudioChunk(c,m),error:e=>{err=e}});ae.configure(aud.cfg);
+    const CH=4800;
+    for(let n0=0;n0<S;n0+=CH){if(err)throw err;if(cancelReq)throw new Error('stop');
+      const n=Math.min(CH,S-n0),data=new Float32Array(n*2);
+      for(let i=0;i<n;i++){const m=n0+i,j=s0+m%len;let gg=g;if(cut&&m>S-fade)gg*=(S-m)/fade;data[i]=ch0[j]*gg;data[n+i]=ch1[j]*gg}
+      const ad=new AudioData({format:'f32-planar',sampleRate:SR,numberOfFrames:n,numberOfChannels:2,timestamp:Math.round(n0*1e6/SR),data});ae.encode(ad);ad.close();await wait(ae);
+      if((n0/CH)%20===0)note.textContent='レンダリング中… '+(90+Math.round(n0/S*10))+'%'}
+    await ae.flush();ae.close();
+  }
+  if(err)throw err;
+  muxer.finalize();saveBlob(new Blob([muxer.target.buffer],{type:'video/mp4'}));
+}
+
+// ===== 全画面：プレビューをタップで全画面、もう一度で戻る =====
+async function toggleFS(){try{if(document.fullscreenElement)await document.exitFullscreen();else await stage.requestFullscreen({navigationUI:'hide'})}catch(e){stage.classList.toggle('fs')}}
+stage.addEventListener('click',e=>{if(!photos.length)return;if(e.target===cv||e.target===stage)toggleFS()});
+// 戻るジェスチャーでアプリが閉じないように（開いているパネルや全画面を閉じるだけ）
+{let armed=false;const arm=()=>{if(armed)return;armed=true;try{history.pushState({ps:1},'')}catch(e){}};
+ document.addEventListener('pointerdown',arm,{capture:true});
+ window.addEventListener('popstate',()=>{armed=false;arm();if(BL.closeMenu())return;
+   if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});return}
+   if(stage.classList.contains('fs')){stage.classList.remove('fs');return}
+   if(!$('sorter').hidden){$('sortX').onclick();return}
+   const open=['pick','esheet','asheet','ssheet'].find(id=>!$(id).hidden);if(open){$(open).hidden=true;return}
+   note.textContent='戻る操作は無効にしています（アプリを閉じるときはホームボタンで）。'})}
+document.addEventListener('visibilitychange',()=>{last=performance.now();if(document.hidden&&playing)play(false)});
+
+BL.switcher('slideshow',stage);resizeCv();renderStrip();setGo();paint();requestAnimationFrame(t0=>{last=t0;loop(t0)});
+}
+</script>
+</body>
+</html>

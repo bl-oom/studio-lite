@@ -1,0 +1,63 @@
+/* bl-oom Studio Lite 共通デザイン（トンマナ）。各道具はこれを読み込んでから自分専用の見た目を足す */
+:root{--edge:28px;--edgeB:30px;color-scheme:dark;--bg:#0e0f12;--panel:#17191e;--line:#2a2d35;--ink:#eef0f4;--mute:#8b909c;--a:#22c7e0;--b:#ef3f8f;--go:#f2f2f2}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Zen Kaku Gothic New",system-ui,sans-serif;overflow:hidden}
+.wrap{height:100dvh;display:flex;flex-direction:column;gap:8px;padding:max(8px,env(safe-area-inset-top)) max(var(--edge),env(safe-area-inset-right)) max(var(--edgeB),env(safe-area-inset-bottom)) max(var(--edge),env(safe-area-inset-left));max-width:760px;margin:0 auto}
+.side{display:flex;flex-direction:column;gap:8px;position:relative;flex:none}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--mute);padding:20px;cursor:pointer}
+.empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:4px}
+.stage:fullscreen{border-radius:0;border:0;background:#000}
+.vol input{flex:1;height:28px;-webkit-appearance:none;appearance:none;background:transparent}
+.vol input::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--a),var(--b))}
+.vol input::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;margin-top:-7px;box-shadow:0 1px 4px #0008}
+.vol input::-moz-range-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--a),var(--b))}
+.vol input::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0}
+.track{position:absolute;left:0;right:0;top:16px;height:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line)}
+.head{position:absolute;top:10px;width:4px;height:24px;margin-left:-2px;background:var(--go);border-radius:2px;box-shadow:0 0 0 2px #0008}
+.times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;font:600 14px "Overpass Mono",monospace}
+.times small{font:500 12px "Zen Kaku Gothic New",sans-serif;color:var(--mute)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+button:disabled{opacity:.35;cursor:default}
+.mode.fwd{background:#2b2e36}
+.go .gi{width:20px;height:20px;flex:none}
+.wide2{grid-column:span 2}
+.exp.rec{background:#c62828;border-color:#c62828;color:#fff}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.note{color:var(--mute);font-size:12px;margin:0 2px;height:34px;overflow:hidden;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dl{text-decoration:none;opacity:.35;pointer-events:none;white-space:nowrap;padding:0 14px!important;width:auto!important}
+.dl.ready{opacity:1;pointer-events:auto;background:linear-gradient(90deg,var(--a),var(--b));color:#fff;border:0}
+input[type=file]{display:none}
+[hidden]{display:none!important}
+.picklist{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.sheet>*{flex:none}
+.qlist{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.qlist button:first-child{grid-column:span 2}
+.repwrap{position:relative;height:35px;flex:none}
+.repsl{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;height:35px;padding:0 calc(50% - 21px);scrollbar-width:none;-webkit-mask:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)}
+.repsl::-webkit-scrollbar{display:none}
+.repsl button{flex:0 0 42px;scroll-snap-align:center;height:35px;border:0;background:none;font:700 14px "Overpass Mono",monospace;color:var(--mute);padding:0}
+.repsl button.sel{color:#fff;font-size:16px}
+.repmark{position:absolute;left:50%;top:0;width:42px;height:35px;margin-left:-21px;border-radius:9px;border:1.5px solid transparent;background:linear-gradient(90deg,var(--a),var(--b)) border-box;-webkit-mask:linear-gradient(#000 0 0) padding-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) padding-box exclude,linear-gradient(#000 0 0);pointer-events:none}
+.repwrap.off .repsl button{color:#4a4f5a}
+.repwrap.off .repmark{opacity:.3}
+.sheet{position:absolute;inset:0;z-index:5;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.shd b{background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:16px}
+.okb{background:var(--go);color:#111;border:0}
+.mini{width:auto;height:36px;padding:0 14px}
+/* レンダリングボタン（どの道具も同じ） */
+.exp{border-color:var(--go);white-space:nowrap;font-size:12.5px;letter-spacing:-.03em;padding:0 2px}
+/* ===== 道具の切り替え（プレビュー左上に固定） ===== */
+.bl-sw{position:absolute;left:8px;top:8px;z-index:4;width:auto!important;height:30px!important;padding:0 10px 0 12px!important;font:700 12px "Zen Kaku Gothic New",sans-serif!important;background:rgba(14,15,18,.72)!important;border:1px solid #ffffff2e!important;border-radius:99px!important;color:#fff;gap:6px;backdrop-filter:blur(4px)}
+.bl-sw i{font-style:normal;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stage:fullscreen .bl-sw,.stage.fs .bl-sw{display:none!important}
+.bl-menu{position:fixed;inset:0;z-index:60;background:rgba(8,9,11,.92);display:flex;flex-direction:column;justify-content:center;gap:10px;padding:24px max(var(--edge),env(safe-area-inset-right)) max(var(--edgeB),env(safe-area-inset-bottom)) max(var(--edge),env(safe-area-inset-left));max-width:560px;margin:0 auto}
+.bl-menu h2{margin:0 2px 6px;font-size:20px;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.bl-menu .tool{height:auto;min-height:72px;flex-direction:column;align-items:flex-start;text-align:left;padding:10px 16px;gap:2px}
+.bl-menu .tool b{font-size:18px}
+.bl-menu .tool small{color:var(--mute);font:500 12px "Zen Kaku Gothic New",sans-serif}
+.bl-menu .tool.cur{border-color:var(--a)}
+.bl-menu .close{margin-top:6px}
+.bl-menu button{font:700 14px "Zen Kaku Gothic New",sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer;display:flex;justify-content:center;align-items:center;width:100%;height:46px}
+.bl-menu button.okb{background:var(--go);color:#111;border:0}
+.bl-menu button.tool{height:auto;justify-content:center}
