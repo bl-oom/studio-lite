@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Slideshow – bl-oom Studio Lite</title>
+<title>Slideshow Lite – bl-oom Studio Lite</title>
 <link rel="manifest" href="../manifest.json">
 <link rel="icon" href="../icon.svg">
 <meta name="theme-color" content="#0e0f12">
@@ -33,11 +33,10 @@ h1{font-size:16px;margin:0 2px;font-weight:700;flex:none}
 .stage.has .empty{display:none}
 /* 写真の帯 */
 .srow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:8px;align-items:center;flex:none}
-.mode{height:58px;border-color:var(--go);padding:0}
 
-.strip{display:flex;gap:6px;overflow-x:auto;height:58px;flex:none;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;padding:3px 2px;scrollbar-width:none;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.strip{display:flex;gap:6px;overflow-x:auto;height:52px;flex:none;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;padding:3px 2px;scrollbar-width:none;background:var(--panel);border:1px solid var(--line);border-radius:12px}
 .strip::-webkit-scrollbar{display:none}
-.strip .th{position:relative;flex:0 0 50px;height:50px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#000}
+.strip .th{position:relative;flex:0 0 44px;height:44px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#000}
 .strip .th img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .strip .th i{position:absolute;left:2px;bottom:1px;font:600 10px "Overpass Mono",monospace;font-style:normal;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
 .strip .th.cur{border-color:var(--a)}
@@ -64,8 +63,6 @@ button:focus-visible{outline:2px solid var(--a);outline-offset:2px}
 label.bgm{border-color:#f5b83d;color:#f5b83d;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px;display:block;line-height:44px}
 label.bgm.has{background:#f5b83d;color:#1a1300}
 
-.volbox{grid-column:span 4}
-.vol{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;height:42px;padding:0 12px;font-size:13px;color:var(--mute)}
 
 
 
@@ -152,10 +149,9 @@ label.bgm.has{background:#f5b83d;color:#1a1300}
 <div class="wrap">
 <div class="stage" id="stage">
   <canvas id="cv"></canvas>
-  <button type="button" class="empty" id="empty" style="background:none;border:0;height:auto;width:auto;font:inherit"><div><b>写真を選ぶ</b>ギャラリー・ファイル・フォルダから、まとめて選べます（何枚でも）</div></button>
+  <button type="button" class="empty" id="empty"><div><b>写真を選ぶ</b>端末に保存されている写真をタップして開く（まとめて選べます）</div></button>
 </div>
 <div class="side">
-  <h1>Slideshow</h1>
   <div class="sheet" id="pick" hidden>
     <div class="shd"><b id="pickT">選択</b><button id="pickX" class="okb mini">閉じる</button></div>
     <div class="picklist" id="pickL"></div>
@@ -170,7 +166,7 @@ label.bgm.has{background:#f5b83d;color:#1a1300}
     </div>
   </div>
   <div class="sheet" id="ssheet" hidden>
-    <div class="shd"><b>音のA・B（この間をループ）</b><span class="now" id="bnow">0:00.0</span></div>
+    <div class="shd"><b>音のA・B</b><span class="now" id="bnow">0:00:00</span></div>
     <div class="tl" id="btl"><div class="track"></div><div class="range" id="brange"></div>
       <div class="mk" id="bmA"><span>A</span></div><div class="mk" id="bmB"><span>B</span></div><div class="head" id="bhead" style="left:0"></div></div>
     <div class="times"><div><small>A</small><span id="btA">頭</span></div><div><small>B</small><span id="btB">最後</span></div><div><small>長さ</small><span id="bdur">--</span></div></div>
@@ -181,8 +177,8 @@ label.bgm.has{background:#f5b83d;color:#1a1300}
   </div>
   <div class="sheet" id="esheet" hidden>
     <div class="shd"><b>レンダリング</b><button id="eclose" class="okb mini">閉じる</button></div>
-    <small class="elab">長さ<span id="elen">--</span></small>
-    <button type="button" id="repAudio" class="opt">音声合わせ（音の長さぴったり）</button>
+    <small class="elab">回数<span id="elen">--</span></small>
+    <button type="button" id="repAudio" class="opt">音声合わせ</button>
     <div class="repwrap" id="repwrap"><div class="repmark"></div><div class="repsl" id="repsl"></div></div>
     <small class="elab">画質</small>
     <div class="qlist" id="qlist"><button type="button" data-v="src" id="qsrc">素材と同じ</button><button type="button" data-v="720">標準（720p）</button><button type="button" data-v="1080">高め（1080p）</button></div>
@@ -207,7 +203,7 @@ label.bgm.has{background:#f5b83d;color:#1a1300}
     <label class="btn bgm wide2" for="bfile" id="bname">♪ 音楽を選ぶ</label>
     <button id="bopen" disabled>音の範囲</button>
     <button id="exp" class="exp" disabled>レンダリング</button>
-    <div class="volbox"><label class="vol"><span>音量</span><input type="range" id="bvol" min="0" max="1" step="0.05" value="1" aria-label="音量"></label></div>
+    <div class="volbox"><label class="vol"><span>音量</span><input type="range" id="bvol" min="0" max="1" step="0.05" value="1" aria-label="音量"></label><small>ここで設定した音量でレンダリングされます</small></div>
   </div>
   <div class="bar">
     <p class="note" id="note">写真を選んで「再生」。プレビューをタップすると全画面、もう一度タップで戻ります。</p>
@@ -247,7 +243,7 @@ let photos=[],nextId=1,playing=false,t=0,last=0,dirty=true,busy=false,cancelReq=
 let aFile=null,bUrl=null;
 
 const col=new Intl.Collator('ja',{numeric:true});
-const fmt=s=>{if(s==null||!isFinite(s))return'--';const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1)};
+const fmt=BL.tc,_fmtOld=s=>{if(s==null||!isFinite(s))return'--';const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1)};
 // ===== 並び（ループ：1→N、バウンド：1→N→…→2 を繰り返す。ズームはどちらも常にイン） =====
 function seq(){const n=photos.length,s=[];for(let i=0;i<n;i++)s.push([i,1]);if(set.mode==='bounce'&&n>2)for(let i=n-2;i>=1;i--)s.push([i,-1]);return s}
 const X=()=>set.tr==='cut'?0:Math.min(1,set.dur*0.35); // ディゾルブの長さ
@@ -333,7 +329,7 @@ function keepPos(change){const w=where(t);let id=null,frac=0,dir=1;if(w){const[i
 function paint(){
   const b=(id,v,cls)=>{const e=$(id);e.querySelector('b').textContent=v;e.classList.toggle('on',cls==='on');e.classList.toggle('alt',cls==='alt')};
   b('bDur',set.dur+'秒');b('bTr',set.tr==='cut'?'カット':'ディゾルブ',set.tr==='cut'?'':'on');b('bZoom',set.zoom?'オン':'オフ',set.zoom?'on':'');b('bRot',set.rot?'オン':'オフ',set.rot?'on':'');
-  {const m=$('bMode'),bo=set.mode==='bounce';m.innerHTML=bo?ICON_PP:ICON_FW;m.title=bo?'バウンド（往復）':'ループ（一方向）';m.classList.toggle('fwd',!bo)}b('bAsp',set.asp==='auto'?'自動 '+(photos.length?ratioText():''):({'1:1':'1:1 正方形',fold:'Fold7 内',cover:'Fold7 外'}[set.asp]||ASP[set.asp].t));b('bFit',set.fit==='cover'?'いっぱい':'全体を表示');
+  {const m=$('bMode'),bo=set.mode==='bounce';m.innerHTML=BL.modeHTML(bo);m.title=bo?'バウンド':'ループ';m.classList.toggle('fwd',!bo)}b('bAsp',set.asp==='auto'?'自動 '+(photos.length?ratioText():''):({'1:1':'1:1 正方形',fold:'Fold7 内',cover:'Fold7 外'}[set.asp]||ASP[set.asp].t));b('bFit',set.fit==='cover'?'いっぱい':'全体を表示');
   const has=photos.length>0;$('go').disabled=!has;$('bSort').disabled=!has;$('exp').disabled=!has||busy;stage.classList.toggle('has',has);
   $('bvol').value=set.vol;bgm.volume=set.vol;
   const sk=shapeKey();if(sk!==lastShape){lastShape=sk;clearCache();resizeCv()}
@@ -492,7 +488,7 @@ async function exportNow(){
   busy=false;$('exp').classList.remove('rec');$('exp').textContent='レンダリング';paint();dirty=true;
 }
 async function render(){
-  const[W,H]=outSize(set.q),F=30,P=period();
+  const[W,H]=outSize(set.q),F=BL.FPS,P=period();
   let aud=null;
   if(aFile&&window.AudioEncoder){note.textContent='音声を準備しています…';const cfg=await pickAudioCfg();
     if(cfg){try{const oac=new OfflineAudioContext({numberOfChannels:2,length:1,sampleRate:48000});const buf=await oac.decodeAudioData(await aFile.arrayBuffer());aud={buf,cfg}}catch(e){}}

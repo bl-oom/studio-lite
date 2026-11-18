@@ -2,13 +2,18 @@
 (function(){
 const TOOLS=[
   {id:'ab-loop',name:'AB Loop',desc:'動画のA〜Bを往復ループして、回数を決めてレンダリング'},
-  {id:'slideshow',name:'Slideshow',desc:'写真をつないでスライドショー（ズーム・回転・音楽付き）'},
+  {id:'slideshow',name:'Slideshow Lite',desc:'写真をつないでスライドショー（ズーム・回転・音楽付き）'},
 ];
 const KEY='bl_studio_last';
 const BL={
   TOOLS,
   // Fold7の画面（縦に持った時の 幅×高さ）
   FOLD:{inner:[1968,2184],cover:[1080,2520]},
+  // 時間の表示とレンダリングは30pでそろえる
+  FPS:30,
+  tc(s){if(s==null||!isFinite(s))return'--';let n=Math.round(s*30);const fr=n%30;n=(n-fr)/30;const m=Math.floor(n/60),sec=n%60;return m+':'+String(sec).padStart(2,'0')+':'+String(fr).padStart(2,'0')},
+  // くり返しボタン：記号＋文字（ループ＝A→Bまで行ったらAに戻る／バウンド＝A→B→Aと往復）
+  modeHTML(bounce){return bounce?'<span class="mi">⇄</span><span class="mt">バウンド</span>':'<span class="mi">↻</span><span class="mt">ループ</span>'},
   fmt(s){if(s==null||!isFinite(s))return'--';const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1)},
   remember(id){try{localStorage.setItem(KEY,id)}catch(e){}},
   last(){try{const id=localStorage.getItem(KEY);return TOOLS.some(t=>t.id===id)?id:null}catch(e){return null}},

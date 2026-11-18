@@ -42,12 +42,9 @@ h1{order:-1;font-size:16px;margin:0 2px;font-weight:700;flex:none}
 .fsbtn{position:absolute;right:8px;top:8px;z-index:2;width:auto;height:32px;padding:0 10px;font-size:12px;background:rgba(0,0,0,.6);border:1px solid #fff3;display:none}
 .stage.has .fsbtn{display:flex}.stage:fullscreen .fsbtn{display:none}
 .side>*{order:1;flex:none}.side>h1{order:-1}
-.tlrow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:10px;align-items:center}
+.tlrow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:8px;align-items:center}
 .tl{position:relative;height:44px;touch-action:none;cursor:ew-resize;margin:0 10px 0 14px}
 .playb{height:46px;font-size:18px}
-.volbox{grid-column:span 4;display:flex;flex-direction:column;gap:3px}
-.volbox small{color:var(--mute);font-size:11px;padding-left:4px}
-.vol{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;height:46px;padding:0 12px;font-size:13px;color:var(--mute)}
 
 
 
@@ -79,7 +76,6 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--a);outline-off
 
 select{appearance:none;text-align-last:center;font-size:14px}
 .setA{border-color:var(--a);color:var(--a)}.setB{border-color:var(--b);color:var(--b)}
-.mode{border-color:var(--go);font-size:15px;height:46px}
 
 .go{grid-column:span 4;height:52px;font-size:18px;background:linear-gradient(90deg,var(--a),var(--b));color:#fff;border:0;text-shadow:0 1px 2px #0005}
 .go:disabled{opacity:.4}
@@ -200,7 +196,7 @@ select.nat{display:none}
     <div class="plist" id="plist"></div>
   </div>
   <div class="sheet" id="sheet" hidden>
-    <div class="shd"><b>裏の音のA・B</b><span id="bnow">0:00.00</span></div>
+    <div class="shd"><b>音のA・B</b><span id="bnow">0:00:00</span></div>
     <div class="tl" id="btl"><div class="track"></div><div class="range rg2" id="brange"></div>
       <div class="mk" id="bmA"><span>A</span></div><div class="mk" id="bmB"><span>B</span></div><div class="head" id="bhead" style="left:0"></div></div>
     <div class="times"><div><small>A</small><span id="btA">頭</span></div><div><small>B</small><span id="btB">最後</span></div><div><small>長さ</small><span id="bdur">--</span></div></div>
@@ -217,7 +213,7 @@ select.nat{display:none}
   <div class="mk" id="mB"><span>B</span></div>
   <div class="head" id="head" style="left:0"></div>
 </div>
-<button class="mode" id="mode" data-m="pp" aria-label="往復" title="往復"><svg viewBox="0 0 48 28" width="44" height="26" aria-hidden="true"><path d="M8 9h30m-6-5 6 5-6 5M40 19H10m6-5-6 5 6 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button class="mode" id="mode" data-m="pp" aria-label="バウンド" title="バウンド"><span class="mi">⇄</span><span class="mt">バウンド</span></button>
 </div>
 <div class="times">
   <div><small>今</small><span id="tN">0:00.00</span></div>
@@ -242,7 +238,7 @@ select.nat{display:none}
   <button id="popen" class="pbtn" hidden>プロジェクト</button>
 </div>
 <div class="bar">
-  <p class="note" id="note">A点とB点を決めて「ループ開始」。音は「元の音」（範囲をA→Bで繰り返し）か「裏の音」。A・B未指定なら動画全体。右のアイコンで往復（逆再生で戻る）と一方向を切り替え。元の音は流れません。</p>
+  <p class="note" id="note">A点とB点を決めて「ループ開始」。音は「元の音」（範囲をA→Bで繰り返し）か「裏の音」。A・B未指定なら動画全体。右のボタンで「バウンド」（逆再生で戻る）と「ループ」（Aに戻る）を切り替え。元の音は流れません。</p>
   <a id="dl" class="dl">↓ もう一度保存</a>
 </div>
 </div>
@@ -322,8 +318,8 @@ $('bclr').onclick=()=>{bgmStop();aFile=null;aHandle=null;bA=null;bB=null;$('shee
 $('bvol').oninput=()=>{const x=+$('bvol').value;if(gain)gain.gain.value=x;else bgm.volume=x};
 let looping=false,phase='',frames=[],times=[],raf=0,t=0,dir=1,last=0,vfcId=0,cancelCap=null;
 
-const tc=s=>{if(s==null||isNaN(s))return'--';const f=Math.max(1,Math.round(fps));let n=Math.round(s*f);const fr=n%f;n=(n-fr)/f;const m=Math.floor(n/60),sec=n%60;return m+':'+String(sec).padStart(2,'0')+':'+String(fr).padStart(2,'0')};
-const fmt=s=>{if(s==null||isNaN(s))return'--';const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(2)};
+// 時間の表示は30pのタイムコード（共通）
+const tc=BL.tc,fmt=BL.tc;
 const dur=()=>v.duration||0;
 const pct=s=>(dur()?s/dur()*100:0)+'%';
 
@@ -360,8 +356,8 @@ if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
 }
 
 function seek(s){stopLoop();v.pause();v.currentTime=Math.max(0,Math.min(dur(),s));ui()}
-$('back').onclick=()=>seek(v.currentTime-1/fps);
-$('fwd').onclick=()=>seek(v.currentTime+1/fps);
+$('back').onclick=()=>seek(v.currentTime-1/BL.FPS);
+$('fwd').onclick=()=>seek(v.currentTime+1/BL.FPS);
 $('setA').onclick=()=>{if(!v.src)return;stopLoop();A=v.currentTime;ui()};
 $('setB').onclick=()=>{if(!v.src)return;stopLoop();B=v.currentTime;ui()};
 $('spd').onchange=()=>{if(looping&&phase==='capture')v.playbackRate=1};
@@ -429,7 +425,7 @@ async function startLoop(){
   const finish=()=>{if(done||!looping)return;done=true;v.pause();cancelCap=null;
     if(frames.length<2){note.textContent='コマを取得できませんでした。範囲を広げてください。';stopLoop();return}
     phase='play';if(fwd){t=times[0];dir=1}else{t=times[times.length-1];dir=-1}last=performance.now();
-    note.textContent=(fwd?'一方向ループ中（':'往復ループ中（')+frames.length+'コマ / '+W+'×'+H+'）';if(expPending){expPending=false;exportNow()}raf=requestAnimationFrame(tick)};
+    note.textContent=(fwd?'ループ中（':'バウンド中（')+frames.length+'コマ / '+W+'×'+H+'）';if(expPending){expPending=false;exportNow()}raf=requestAnimationFrame(tick)};
   if('requestVideoFrameCallback' in v){
     const cb=async(n,m)=>{if(done||!looping)return;
       if(m.mediaTime>b+0.001){finish();return}
@@ -455,7 +451,7 @@ function idx(x){let lo=0,hi=times.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(
 
 let fwd=false;
 const ICON_PP='<svg viewBox="0 0 48 28" width="44" height="26" aria-hidden="true"><path d="M8 9h30m-6-5 6 5-6 5M40 19H10m6-5-6 5 6 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',ICON_FW='<svg viewBox="0 0 48 28" width="44" height="26" aria-hidden="true"><path d="M8 18h30m-6-5 6 5-6 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M38 9C30 1 16 1 9 8" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/><path d="M8 3v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function setMode(m){fwd=m==='fw';const b=$('mode');b.dataset.m=fwd?'fw':'pp';b.innerHTML=fwd?ICON_FW:ICON_PP;b.setAttribute('aria-label',fwd?'一方向':'往復');b.title=fwd?'一方向':'往復';b.classList.toggle('fwd',fwd);if(fwd)dir=1}
+function setMode(m){fwd=m==='fw';const b=$('mode');b.dataset.m=fwd?'fw':'pp';b.innerHTML=BL.modeHTML(!fwd);b.setAttribute('aria-label',fwd?'ループ':'バウンド');b.title=fwd?'ループ':'バウンド';b.classList.toggle('fwd',fwd);if(fwd)dir=1}
 $('mode').onclick=()=>{if(recOn||busy)return;setMode(fwd?'pp':'fw')};
 function tick(now){
   if(!looping||phase!=='play')return;
@@ -471,7 +467,7 @@ function tick(now){
   if(t<=a){if(recOn&&(++cycles,recOnce?audioDone:cycles>=repN())){t=a;ctx.drawImage(frames[0],0,0);recOn=false;recOnce=false;setTimeout(()=>{rec.stop();bgmPlay(true)},120);setRecUI(false);note.textContent='レンダリング処理中…';ui();raf=requestAnimationFrame(tick);return}t=a+(a-t);dir=1}
   ctx.drawImage(frames[idx(t)],0,0);
   if(recOn)note.textContent='● 録画中 '+(recOnce?(audioDone?'音が終わりました。Aに戻るまで録画します':'音声合わせ '+(cycles+1)+'回目'):(cycles+1)+'/'+$('rep').value+'回')+'　この画面のままにしてください';
-  $('badge').textContent=(recOn?'● 録画中 '+(recOnce?(audioDone?'♪終了→Aまで':'♪ '+(cycles+1)+'回目'):(cycles+1)+'/'+$('rep').value)+'  ':'')+(fwd?'▶ A→B（一方向）':dir>0?'▶ A→B':'◀ B→A 逆再生');
+  $('badge').textContent=(recOn?'● 録画中 '+(recOnce?(audioDone?'♪終了→Aまで':'♪ '+(cycles+1)+'回目'):(cycles+1)+'/'+$('rep').value)+'  ':'')+(fwd?'▶ A→B（ループ）':dir>0?'▶ A→B':'◀ B→A 逆再生');
   ui();raf=requestAnimationFrame(tick);
 }
 function pickMime(){
@@ -501,7 +497,7 @@ const pickVideoCfg=BL.pickVideoCfg,pickAudioCfg=BL.pickAudioCfg; // 共通部分
 async function renderOffline(){
   if(!window.VideoEncoder||!window.Mp4Muxer||frames.length<2)return false;
   busy=true;$('exp').classList.add('rec');$('exp').textContent='処理中…';
-  const W=cv.width,H=cv.height,F=Math.max(24,Math.min(60,Math.round(fps)||30));
+  const W=cv.width,H=cv.height,F=BL.FPS; // レンダリングは30p（共通）
   const a=times[0],b=times[times.length-1],sp=+$('spd').value,seg=b-a,path=fwd?seg:2*seg,cycleDur=path/sp;
   // 音：元の音（ループ範囲をA→Bで繰り返し）／裏の音
   let aud=null;
@@ -568,7 +564,7 @@ async function renderOffline(){
 function beginRec(){
   recMime=pickMime();
   if(!recMime||!cv.captureStream){note.textContent='このブラウザは動画のレンダリングに対応していません（Chromeで開いてください）。';return}
-  const st=cv.captureStream(fps>=50?60:30);
+  const st=cv.captureStream(BL.FPS);
   if(hasAud()&&adest){adest.stream.getAudioTracks().forEach(tr=>st.addTrack(tr))}
   rec=new MediaRecorder(st,{mimeType:recMime,videoBitsPerSecond:cv.height>=1000?16e6:8e6});
   chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
@@ -584,7 +580,7 @@ function beginRec(){
   };
   t=times[0];dir=1;cycles=0;last=performance.now();ctx.drawImage(frames[0],0,0);
   recOnce=$('rep').value==='audio'&&!useOrig;audioDone=false;bgmPlay(true);rec.start(500);recOn=true;setRecUI(true);
-  note.textContent='録画しています。終わるまでこの画面のままにしてください（'+(recOnce?'音の長さ＋Aに戻るまで':'往復'+$('rep').value+'回')+'）。';ui();
+  note.textContent='録画しています。終わるまでこの画面のままにしてください（'+(recOnce?'音の長さ＋Aに戻るまで':$('rep').value+'回')+'）。';ui();
 }
 $('exp').onclick=()=>{if(recOn||busy)return;$('sheet').hidden=true;$('psheet').hidden=true;$('pick').hidden=true;$('esheet').hidden=false;esheetOpen()};
 $('eclose').onclick=()=>{$('esheet').hidden=true};
@@ -599,8 +595,8 @@ function setRep(v){$('rep').value=String(v);if(v!=='audio')lastNum=+v;repPaint()
 $('repAudio').onclick=()=>setRep('audio');
 RS.addEventListener('scroll',()=>{if(repIgnore)return;clearTimeout(repT);repT=setTimeout(()=>{const n=Math.max(1,Math.min(30,Math.round(RS.scrollLeft/ITEM)+1));setRep(n)},120)});
 RS.onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;setRep(+b.dataset.n);repScrollTo(+b.dataset.n,true)};
-function qLabel(v){if(v==='src'){const w=v2w();return '素材と同じ（'+(w?w:'動画の解像度')+'）'}return $('q').querySelector('option[value="'+v+'"]').text}
-function v2w(){return v.videoWidth?Math.min(v.videoWidth,v.videoHeight)+'p':''}
+function qLabel(v){if(v==='src'){return '素材と同じ（'+(v2w()||'動画の解像度')+'）'}return $('q').querySelector('option[value="'+v+'"]').text}
+function v2w(){return v.videoWidth?v.videoWidth+'×'+v.videoHeight:''}
 function qPaint(){$('qlist').innerHTML=[...$('q').options].map(o=>'<button type="button" data-v="'+o.value+'"'+(o.value===$('q').value?' class="sel"':'')+'>'+qLabel(o.value)+'</button>').join('')}
 $('qlist').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;$('q').value=b.dataset.v;qPaint()};
 function esheetOpen(){if($('rep').value!=='audio')lastNum=+$('rep').value;repPaint();qPaint();requestAnimationFrame(()=>repScrollTo(lastNum,false))}
