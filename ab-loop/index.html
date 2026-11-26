@@ -486,7 +486,7 @@ function captureSeg(seg,a,b){return new Promise(async res=>{
   await new Promise(r=>{v.onseeked=()=>{v.onseeked=null;r()};v.currentTime=a});
   if(!looping){res(false);return}
   const grab=async m=>{const bm=await createImageBitmap(v,{resizeWidth:seg.cw,resizeHeight:seg.ch});if(!looping){bm.close();return}
-    seg.frames.push(bm);seg.times.push(m);drawSeg(ctx,seg,seg.frames.length-1);t=m;ui()};
+    seg.frames.push(bm);seg.times.push(m);showSeg(seg,seg.frames.length-1);t=m;ui()};
   const finish=()=>{if(done)return;done=true;v.pause();cancelCap=null;v.onended=null;res(seg.frames.length>=2)};
   if('requestVideoFrameCallback' in v){
     const cb=async(n,m)=>{if(done)return;if(!looping){done=true;res(false);return}
@@ -509,6 +509,11 @@ function captureSeg(seg,a,b){return new Promise(async res=>{
   }
 })}
 // 形が違う動画は、全体の画面の中に黒い余白付きで収める
+// プレビューは動画ごとの形のまま画面いっぱいに出す（全画面でも横の動画は横いっぱい）。録画中だけは書き出しと同じ形
+let frameW=0,frameH=0;
+function showSeg(seg,i){
+  if(rec&&rec.state==='recording'){if(cv.width!==frameW||cv.height!==frameH){cv.width=frameW;cv.height=frameH}drawSeg(ctx,seg,i);return}
+  if(cv.width!==seg.cw||cv.height!==seg.ch){cv.width=seg.cw;cv.height=seg.ch}ctx.drawImage(seg.frames[i],0,0)}
 function drawSeg(x,seg,i){const W=x.canvas.width,H=x.canvas.height;if(seg.cw<W||seg.ch<H){x.fillStyle='#000';x.fillRect(0,0,W,H)}x.drawImage(seg.frames[i],seg.ox,seg.oy)}
 function idxIn(s,x){const ts=s.times;let lo=0,hi=ts.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(ts[m]<=x)lo=m;else hi=m-1}return lo}
 // 流れ：ループ＝1本目A→B、2本目A→B…／バウンド＝1本目A→B→A、2本目A→B→A…（最後まで行ったら1本目へ）
@@ -536,7 +541,7 @@ async function startLoop(){
   const budget=350e6,need=est*FW*FH*4*s*s;
   if(need>budget)s*=Math.sqrt(budget/need);
   const W=Math.max(2,Math.round(FW*s/2)*2),H=Math.max(2,Math.round(FH*s/2)*2);
-  cv.width=W;cv.height=H;stage.classList.add('looping');
+  frameW=W;frameH=H;cv.width=W;cv.height=H;stage.classList.add('looping');
   v.pause();v.muted=true;v.playbackRate=1;
   if(!useOrig)bgmPlay(true);
   const many=list.length>1;
@@ -572,12 +577,12 @@ function tick(now){
   const sp=+$('spd').value;
   u+=dt*sp;
   if(u>=cyc){
-    if(recOn&&(++cycles,recOnce?audioDone:cycles>=repN())){const e=at(cyc);drawSeg(ctx,e.p.s,idxIn(e.p.s,e.tt));recOn=false;recOnce=false;u=0;curK=-1;setTimeout(()=>{rec.stop();bgmPlay(true)},120);setRecUI(false);note.textContent='レンダリング処理中…';ui();raf=requestAnimationFrame(tick);return}
+    if(recOn&&(++cycles,recOnce?audioDone:cycles>=repN())){const e=at(cyc);showSeg(e.p.s,idxIn(e.p.s,e.tt));recOn=false;recOnce=false;u=0;curK=-1;setTimeout(()=>{rec.stop();bgmPlay(true)},120);setRecUI(false);note.textContent='レンダリング処理中…';ui();raf=requestAnimationFrame(tick);return}
     u%=cyc;
   }
   const e=at(u);
   if(e.k!==curK){curK=e.k;setPlay(clips.indexOf(e.p.s.c));if(useOrig&&P.length>1)audTo(e.p.s.c,e.p.a,e.p.b)}
-  t=e.tt;drawSeg(ctx,e.p.s,idxIn(e.p.s,e.tt));
+  t=e.tt;showSeg(e.p.s,idxIn(e.p.s,e.tt));
   const nm=P.length>1?'動画'+(clips.indexOf(e.p.s.c)+1)+' ':'';
   if(recOn)note.textContent='● 録画中 '+(recOnce?(audioDone?'音が終わりました。最後まで録画します':'音声合わせ '+(cycles+1)+'回目'):(cycles+1)+'/'+$('rep').value+'回')+'　この画面のままにしてください';
   $('badge').textContent=(recOn?'● 録画中 '+(recOnce?(audioDone?'♪終了→最後まで':'♪ '+(cycles+1)+'回目'):(cycles+1)+'/'+$('rep').value)+'  ':'')+nm+(fwd?'▶ A→B（ループ）':e.back?'◀ B→A 逆再生':'▶ A→B');
@@ -610,7 +615,7 @@ const pickVideoCfg=BL.pickVideoCfg,pickAudioCfg=BL.pickAudioCfg; // 共通部分
 async function renderOffline(){
   if(!window.VideoEncoder||!window.Mp4Muxer||!P.length)return false;
   busy=true;$('exp').classList.add('rec');$('exp').textContent='処理中…';
-  const W=cv.width,H=cv.height,F=BL.FPS; // レンダリングは30p（共通）
+  const W=frameW,H=frameH,F=BL.FPS; // レンダリングは30p（共通）・全部の動画が収まる形
   const sp=+$('spd').value,cycleDur=cyc/sp;
   // 音：元の音（動画ごとにA→Bを繰り返し）／裏の音
   let aud=null;
@@ -682,6 +687,7 @@ async function renderOffline(){
 function beginRec(){
   recMime=pickMime();
   if(!recMime||!cv.captureStream){note.textContent='このブラウザは動画のレンダリングに対応していません（Chromeで開いてください）。';return}
+  cv.width=frameW;cv.height=frameH;
   const st=cv.captureStream(BL.FPS);
   if(hasAud()&&adest){adest.stream.getAudioTracks().forEach(tr=>st.addTrack(tr))}
   rec=new MediaRecorder(st,{mimeType:recMime,videoBitsPerSecond:cv.height>=1000?16e6:8e6});
@@ -696,7 +702,7 @@ function beginRec(){
     try{d.click()}catch(e){}
     note.textContent='レンダリング完了。動画を端末に保存しました（'+ext.toUpperCase()+' '+(blob.size/1048576).toFixed(1)+'MB）。';ui();
   };
-  u=0;curK=-1;cycles=0;last=performance.now();drawSeg(ctx,P[0].s,0);if(useOrig)curAud={url:P[0].s.c.url,a:P[0].a,b:P[0].b};
+  u=0;curK=-1;cycles=0;last=performance.now();showSeg(P[0].s,0);if(useOrig)curAud={url:P[0].s.c.url,a:P[0].a,b:P[0].b};
   recOnce=$('rep').value==='audio'&&!useOrig;audioDone=false;bgmPlay(true);rec.start(500);recOn=true;setRecUI(true);
   note.textContent='録画しています。終わるまでこの画面のままにしてください（'+(recOnce?'音の長さ＋Aに戻るまで':$('rep').value+'回')+'）。';ui();
 }
