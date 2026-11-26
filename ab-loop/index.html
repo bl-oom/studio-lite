@@ -485,7 +485,8 @@ function captureSeg(seg,a,b){return new Promise(async res=>{
   if(!looping){res(false);return}
   await new Promise(r=>{v.onseeked=()=>{v.onseeked=null;r()};v.currentTime=a});
   if(!looping){res(false);return}
-  const grab=async m=>{const bm=await createImageBitmap(v,{resizeWidth:seg.cw,resizeHeight:seg.ch});if(!looping){bm.close();return}
+  const grab=async m=>{const lt=seg.times.length?seg.times[seg.times.length-1]:-1;if(lt>=0&&m<lt+1/30-0.004&&m<b-0.001)return; // 30pぶんだけ取る
+    const bm=await createImageBitmap(v,{resizeWidth:seg.cw,resizeHeight:seg.ch});if(!looping){bm.close();return}
     seg.frames.push(bm);seg.times.push(m);showSeg(seg,seg.frames.length-1);t=m;ui()};
   const finish=()=>{if(done)return;done=true;v.pause();cancelCap=null;v.onended=null;res(seg.frames.length>=2)};
   if('requestVideoFrameCallback' in v){
@@ -536,9 +537,10 @@ async function startLoop(){
   // 解像度：全部の動画が収まる大きさが基準。全部のコマがメモリ上限(約350MB)に収まるよう調整
   cacheQ=$('q').value;const maxH=cacheQ==='src'?Infinity:+cacheQ;
   const[FW,FH]=frameSize(list.map(x=>x.c));
-  const est=list.reduce((s,x)=>s+(x.b-x.a)*Math.max(fps,30)+10,0);
+  // コマは30pで取る（60pの動画でも半分で済む）。動画ごとの実際の大きさで見積もる
+  const need1=list.reduce((sum,x)=>{const k=Math.min(FW/x.c.w,FH/x.c.h);return sum+((x.b-x.a)*30+10)*x.c.w*x.c.h*k*k*4},0);
   let s=Math.min(1,maxH/Math.min(FW,FH));
-  const budget=350e6,need=est*FW*FH*4*s*s;
+  const budget=450e6,need=need1*s*s;
   if(need>budget)s*=Math.sqrt(budget/need);
   const W=Math.max(2,Math.round(FW*s/2)*2),H=Math.max(2,Math.round(FH*s/2)*2);
   frameW=W;frameH=H;cv.width=W;cv.height=H;stage.classList.add('looping');
