@@ -42,13 +42,14 @@ h1{order:-1;font-size:16px;margin:0 2px;font-weight:700;flex:none}
 .fsbtn{position:absolute;right:8px;top:8px;z-index:2;width:auto;height:32px;padding:0 10px;font-size:12px;background:rgba(0,0,0,.6);border:1px solid #fff3;display:none}
 .stage.has .fsbtn{display:flex}.stage:fullscreen .fsbtn{display:none}
 .side>*{order:1;flex:none}.side>h1{order:-1}
-.clips{display:flex;gap:6px;overflow-x:auto;height:44px;flex:none;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:12px;scrollbar-width:none}
+.clips{display:flex;gap:6px;overflow-x:auto;height:44px;flex:none;padding:3px;touch-action:pan-x;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;scrollbar-width:none}
 .clips::-webkit-scrollbar{display:none}
 .clips .cl{position:relative;flex:0 0 64px;height:36px;border-radius:7px;overflow:hidden;border:2px solid transparent;background:#000;cursor:pointer}
 .clips .cl img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .clips .cl i{position:absolute;left:3px;bottom:1px;font:600 10px "Overpass Mono",monospace;font-style:normal;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
 .clips .cl.sel{border-color:var(--a)}
 .clips .cl.play{border-color:var(--b)}
+.clips .cl.lift{transform:scale(1.12);border-color:#fff;box-shadow:0 4px 14px #000a;z-index:2}
 .clips .none{color:var(--mute);font-size:12px;display:flex;align-items:center;padding:0 10px;white-space:nowrap}
 .cdel{color:#ff8a8a}
 .tlrow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:8px;align-items:center}
@@ -394,8 +395,24 @@ function clearClips(){stopLoop();clips.forEach(c=>URL.revokeObjectURL(c.url));cl
 $('file').onchange=e=>{const fs=[...(e.target.files||[])];e.target.value='';if(!fs.length)return;vHandle=null;if(pend&&pend.step==='v'){pendVideos(fs);return}curPid=null;addClips(fs)};
 v.onloadedmetadata=()=>{if(seekTo!=null){v.currentTime=seekTo;seekTo=null}ui()};
 v.ontimeupdate=ui;v.onplay=ui;v.onpause=ui;
+// 帯の動画を長押しでつかんで、左右に動かすと順番を入れ替え
+let cd=null,cdEnd=0;
+{const S=$('clips');
+ S.addEventListener('contextmenu',e=>e.preventDefault());
+ S.addEventListener('pointerdown',e=>{const el=e.target.closest('.cl');if(!el||recOn||busy)return;
+   cd={i:+el.dataset.i,x:e.clientX,y:e.clientY,pid:e.pointerId,drag:false,raf:0,timer:setTimeout(()=>{if(!cd)return;
+     if(looping)stopLoop();ui();cd.drag=true;cd.selC=clips[sel];try{S.setPointerCapture(cd.pid)}catch(_){}try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}
+     liftR();note.textContent='そのまま左右に動かすと順番を入れ替えられます。';edge()},320)}});
+ const liftR=()=>{renderClips();const el=S.children[cd.i];if(el)el.classList.add('lift')};
+ const over=x=>{const r=S.getBoundingClientRect(),el=document.elementFromPoint(Math.max(r.left+4,Math.min(r.right-4,x)),r.top+r.height/2),t=el&&el.closest&&el.closest('.cl');
+   if(t&&+t.dataset.i!==cd.i){const to=+t.dataset.i,[c]=clips.splice(cd.i,1);clips.splice(to,0,c);cd.i=to;sel=clips.indexOf(cd.selC);liftR()}};
+ const edge=()=>{if(!cd||!cd.drag)return;const r=S.getBoundingClientRect();let v=0;if(cd.x<r.left+40)v=-8;else if(cd.x>r.right-40)v=8;if(v){S.scrollLeft+=v;over(cd.x)}cd.raf=requestAnimationFrame(edge)};
+ S.addEventListener('pointermove',e=>{if(!cd)return;if(!cd.drag){if(Math.hypot(e.clientX-cd.x,e.clientY-cd.y)>10){clearTimeout(cd.timer);cd=null}return}cd.x=e.clientX;over(e.clientX)});
+ S.addEventListener('touchmove',e=>{if(cd&&cd.drag)e.preventDefault()},{passive:false});
+ const end=()=>{if(!cd)return;clearTimeout(cd.timer);cancelAnimationFrame(cd.raf);if(cd.drag){cdEnd=performance.now();renderClips();ui();note.textContent='順番を入れ替えました（今 '+clips.length+'本）。'}cd=null};
+ S.addEventListener('pointerup',end);S.addEventListener('pointercancel',()=>{if(cd&&!cd.drag){clearTimeout(cd.timer);cd=null}else end()});}
 // 帯をタップ：その動画を選ぶ（選んでいる動画をもう一度タップで、並べ替え・外すメニュー）
-$('clips').onclick=e=>{const x=e.target.closest('[data-i]');if(!x||recOn||busy)return;const i=+x.dataset.i;
+$('clips').onclick=e=>{const x=e.target.closest('[data-i]');if(!x||recOn||busy||performance.now()-cdEnd<400)return;const i=+x.dataset.i;
   if(i===sel&&!looping){openClipMenu();return}
   if(looping)stopLoop();selectClip(i);note.textContent='動画'+(i+1)+'「'+clips[i].name+'」を選びました。A・B点はこの動画ごとに決められます。'};
 function openClipMenu(){const c=clips[sel];if(!c)return;['pick','esheet','psheet','sheet'].forEach(id=>$(id).hidden=true);
@@ -491,7 +508,7 @@ function captureSeg(seg,a,b){return new Promise(async res=>{
     finish();
   }
 })}
-// 形が違う動画は、1本目の画面の形に黒い余白付きで収める
+// 形が違う動画は、全体の画面の中に黒い余白付きで収める
 function drawSeg(x,seg,i){const W=x.canvas.width,H=x.canvas.height;if(seg.cw<W||seg.ch<H){x.fillStyle='#000';x.fillRect(0,0,W,H)}x.drawImage(seg.frames[i],seg.ox,seg.oy)}
 function idxIn(s,x){const ts=s.times;let lo=0,hi=ts.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(ts[m]<=x)lo=m;else hi=m-1}return lo}
 // 流れ：ループ＝1本目A→B、2本目A→B…／バウンド＝1本目A→B→A、2本目A→B→A…（最後まで行ったら1本目へ）
@@ -511,14 +528,14 @@ async function startLoop(){
   if(!looping)return;
   const list=clips.map(c=>{const[a,b]=clipSpan(c);return{c,a,b}}).filter(x=>x.c.dur&&x.c.w&&x.b-x.a>0.1);
   if(!list.length){looping=false;phase='';setGo(false);$('go').classList.remove('on');note.textContent='流せる範囲がありません（A・B点を確認してください）。';ui();return}
-  // 解像度：1本目の動画が基準。全部のコマがメモリ上限(約350MB)に収まるよう調整
-  const c0=list[0].c;
+  // 解像度：全部の動画が収まる大きさが基準。全部のコマがメモリ上限(約350MB)に収まるよう調整
   cacheQ=$('q').value;const maxH=cacheQ==='src'?Infinity:+cacheQ;
+  const[FW,FH]=frameSize(list.map(x=>x.c));
   const est=list.reduce((s,x)=>s+(x.b-x.a)*Math.max(fps,30)+10,0);
-  let s=Math.min(1,maxH/Math.min(c0.w,c0.h));
-  const budget=350e6,need=est*c0.w*c0.h*4*s*s;
+  let s=Math.min(1,maxH/Math.min(FW,FH));
+  const budget=350e6,need=est*FW*FH*4*s*s;
   if(need>budget)s*=Math.sqrt(budget/need);
-  const W=Math.max(2,Math.round(c0.w*s/2)*2),H=Math.max(2,Math.round(c0.h*s/2)*2);
+  const W=Math.max(2,Math.round(FW*s/2)*2),H=Math.max(2,Math.round(FH*s/2)*2);
   cv.width=W;cv.height=H;stage.classList.add('looping');
   v.pause();v.muted=true;v.playbackRate=1;
   if(!useOrig)bgmPlay(true);
@@ -697,7 +714,11 @@ $('repAudio').onclick=()=>setRep('audio');
 RS.addEventListener('scroll',()=>{if(repIgnore)return;clearTimeout(repT);repT=setTimeout(()=>{const n=Math.max(1,Math.min(30,Math.round(RS.scrollLeft/ITEM)+1));setRep(n)},120)});
 RS.onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;setRep(+b.dataset.n);repScrollTo(+b.dataset.n,true)};
 function qLabel(v){if(v==='src'){return '素材と同じ（'+(v2w()||'動画の解像度')+'）'}return $('q').querySelector('option[value="'+v+'"]').text}
-function v2w(){const c=clips[0];return c&&c.w?c.w+'×'+c.h:''}
+// 最終的な画面の形：全部の動画が収まる大きさ（縦と横が混ざっていれば両方の最大）。全部同じ形ならその形
+function frameSize(list){list=(list||clips).filter(c=>c.w&&c.h);if(!list.length)return[0,0];
+  let mw=0,mh=0;for(const c of list){const r=c.w/c.h,w=r>=1?1:r,h=r>=1?1/r:1;mw=Math.max(mw,w);mh=Math.max(mh,h)}
+  const R=mw/mh;let k=0;for(const c of list)k=Math.max(k,c.w/R,c.h);return[Math.round(R*k/2)*2,Math.round(k/2)*2]}
+function v2w(){const[w,h]=frameSize();return w?w+'×'+h:''}
 function qPaint(){$('qlist').innerHTML=[...$('q').options].map(o=>'<button type="button" data-v="'+o.value+'"'+(o.value===$('q').value?' class="sel"':'')+'>'+qLabel(o.value)+'</button>').join('')}
 $('qlist').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;$('q').value=b.dataset.v;qPaint()};
 function esheetOpen(){if($('rep').value!=='audio')lastNum=+$('rep').value;repPaint();qPaint();requestAnimationFrame(()=>repScrollTo(lastNum,false))}
